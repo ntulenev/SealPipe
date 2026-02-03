@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="SealPipe.Tcp.Samples/SealPipe.Tcp.Samples.csproj" />
+  <Project Path="SealPipe.Tcp.Tests/SealPipe.Tcp.Tests.csproj" />
+  <Project Path="SealPipe.Tcp/SealPipe.Tcp.csproj" />
+</Solution>
