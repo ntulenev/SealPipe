@@ -346,7 +346,6 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
 
         return ex switch
         {
-            TcpProtocolException => true,
             TcpReadTimeoutException => true,
             TcpConnectException => true,
             SocketException => true,
