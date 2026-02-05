@@ -146,6 +146,11 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
             }
+
+            while (channel.Reader.TryRead(out var frame))
+            {
+                frame.Dispose();
+            }
         }
     }
 

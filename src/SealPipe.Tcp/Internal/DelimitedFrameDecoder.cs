@@ -91,6 +91,11 @@ internal sealed class DelimitedFrameDecoder
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
             }
+
+            while (reader.TryRead(out var frame))
+            {
+                frame.Dispose();
+            }
         }
     }
 
