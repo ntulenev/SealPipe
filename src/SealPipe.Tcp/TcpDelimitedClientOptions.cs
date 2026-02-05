@@ -36,14 +36,12 @@ public sealed class TcpDelimitedClientOptions
     /// <summary>
     /// Gets the maximum amount of time allowed for a TCP connection attempt.
     /// </summary>
-    [Range(typeof(TimeSpan), "00:00:00.001", "1.00:00:00")]
     public TimeSpan ConnectTimeout { get; init; } = TimeSpan.FromSeconds(5);
 
     /// <summary>
     /// Gets the maximum amount of time allowed without receiving any data.
     /// Use <see cref="Timeout.InfiniteTimeSpan"/> to disable read timeouts.
     /// </summary>
-    [Range(typeof(TimeSpan), "00:00:00.001", "1.00:00:00")]
     public TimeSpan ReadTimeout { get; init; } = TimeSpan.FromSeconds(30);
 
     /// <summary>
