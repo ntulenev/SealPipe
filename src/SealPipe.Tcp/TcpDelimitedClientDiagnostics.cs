@@ -21,6 +21,11 @@ public sealed class TcpDelimitedClientDiagnostics
     public long FramesReceived => Interlocked.Read(ref _framesReceived);
 
     /// <summary>
+    /// Gets the total number of frames dropped due to channel overflow.
+    /// </summary>
+    public long FramesDropped => Interlocked.Read(ref _framesDropped);
+
+    /// <summary>
     /// Gets the timestamp of the last successfully decoded frame, if any.
     /// </summary>
     public DateTimeOffset? LastMessageTimestamp
@@ -45,6 +50,11 @@ public sealed class TcpDelimitedClientDiagnostics
             DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
     }
 
+    internal void AddDroppedFrame()
+    {
+        _ = Interlocked.Increment(ref _framesDropped);
+    }
+
     internal void AddReconnectAttempt()
     {
         _ = Interlocked.Increment(ref _reconnectAttempts);
@@ -53,5 +63,6 @@ public sealed class TcpDelimitedClientDiagnostics
     private long _reconnectAttempts;
     private long _bytesReceived;
     private long _framesReceived;
+    private long _framesDropped;
     private long _lastMessageUnixMs;
 }

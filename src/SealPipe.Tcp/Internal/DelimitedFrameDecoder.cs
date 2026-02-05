@@ -19,10 +19,12 @@ internal sealed class DelimitedFrameDecoder
     /// <param name="delimiter">The delimiter sequence used to terminate frames.</param>
     /// <param name="maxFrameBytes">The maximum allowed size for a single frame.</param>
     /// <param name="overflowStrategy">The strategy used when the frame channel is full.</param>
+    /// <param name="diagnostics">The diagnostics sink for dropped frame counts.</param>
     public DelimitedFrameDecoder(
         ReadOnlyMemory<byte> delimiter,
         int maxFrameBytes,
-        ChannelOverflowStrategy overflowStrategy)
+        ChannelOverflowStrategy overflowStrategy,
+        TcpDelimitedClientDiagnostics diagnostics)
     {
         if (delimiter.Length == 0)
         {
@@ -37,6 +39,7 @@ internal sealed class DelimitedFrameDecoder
         _delimiter = delimiter;
         _maxFrameBytes = maxFrameBytes;
         _overflowStrategy = overflowStrategy;
+        _diagnostics = diagnostics ?? throw new ArgumentNullException(nameof(diagnostics));
     }
 
     /// <summary>
@@ -220,6 +223,10 @@ internal sealed class DelimitedFrameDecoder
                     {
                         pooled = null;
                     }
+                    else
+                    {
+                        _diagnostics.AddDroppedFrame();
+                    }
                 }
                 finally
                 {
@@ -278,6 +285,7 @@ internal sealed class DelimitedFrameDecoder
     private readonly ReadOnlyMemory<byte> _delimiter;
     private readonly int _maxFrameBytes;
     private readonly ChannelOverflowStrategy _overflowStrategy;
+    private readonly TcpDelimitedClientDiagnostics _diagnostics;
     private const int DefaultChannelCapacity = 64;
 
     private readonly record struct ParseResult(

@@ -34,12 +34,13 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
         _logger = logger ?? NullLogger<TcpDelimitedStreamClient>.Instance;
         _encoding = Encoding.GetEncoding(_options.Encoding);
         _delimiterBytes = _encoding.GetBytes(_options.Delimiter);
+        Diagnostics = new TcpDelimitedClientDiagnostics();
         _connector = new SocketConnector(_options, _logger);
         _decoder = new DelimitedFrameDecoder(
             _delimiterBytes,
             _options.MaxFrameBytes,
-            _options.ChannelOverflowStrategy);
-        Diagnostics = new TcpDelimitedClientDiagnostics();
+            _options.ChannelOverflowStrategy,
+            Diagnostics);
     }
 
     /// <summary>
@@ -454,6 +455,7 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
             return true;
         }
 
+        Diagnostics.AddDroppedFrame();
         frame.Dispose();
         return false;
     }
