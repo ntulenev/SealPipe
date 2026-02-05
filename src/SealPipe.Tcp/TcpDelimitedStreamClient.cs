@@ -62,6 +62,9 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
     }
 
     /// <inheritdoc />
+    /// <exception cref="OperationCanceledException">
+    /// Thrown when the provided <paramref name="cancellationToken"/> is canceled.
+    /// </exception>
     public async IAsyncEnumerable<string> ReadMessagesAsync(
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
@@ -84,6 +87,9 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
     }
 
     /// <inheritdoc />
+    /// <exception cref="OperationCanceledException">
+    /// Thrown when the provided <paramref name="cancellationToken"/> is canceled.
+    /// </exception>
     public async IAsyncEnumerable<IMemoryOwner<byte>> ReadFramesAsync(
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
