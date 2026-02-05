@@ -61,6 +61,12 @@ public sealed class TcpDelimitedClientOptions
     public ChannelOverflowStrategy ChannelOverflowStrategy { get; init; } = ChannelOverflowStrategy.Drop;
 
     /// <summary>
+    /// Gets the capacity for internal frame buffering channels.
+    /// </summary>
+    [Range(1, int.MaxValue)]
+    public int ChannelCapacity { get; init; } = 64;
+
+    /// <summary>
     /// Gets TCP keep-alive configuration.
     /// </summary>
     public KeepAliveOptions KeepAlive { get; init; } = new();
@@ -117,6 +123,37 @@ public sealed class TcpDelimitedClientOptions
             throw new ArgumentOutOfRangeException(
                 nameof(ReadTimeout),
                 "ReadTimeout must be greater than zero.");
+        }
+
+        if (ChannelCapacity <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(ChannelCapacity),
+                "ChannelCapacity must be greater than zero.");
+        }
+
+        if (Reconnect.Enabled)
+        {
+            if (Reconnect.InitialDelay <= TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(Reconnect.InitialDelay),
+                    "Reconnect InitialDelay must be greater than zero.");
+            }
+
+            if (Reconnect.MaxDelay <= TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(Reconnect.MaxDelay),
+                    "Reconnect MaxDelay must be greater than zero.");
+            }
+
+            if (Reconnect.MaxAttempts < 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(Reconnect.MaxAttempts),
+                    "Reconnect MaxAttempts must be zero or greater.");
+            }
         }
 
         if (KeepAlive.Enabled)

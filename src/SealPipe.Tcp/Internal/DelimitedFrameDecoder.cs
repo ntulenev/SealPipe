@@ -19,11 +19,13 @@ internal sealed class DelimitedFrameDecoder
     /// <param name="delimiter">The delimiter sequence used to terminate frames.</param>
     /// <param name="maxFrameBytes">The maximum allowed size for a single frame.</param>
     /// <param name="overflowStrategy">The strategy used when the frame channel is full.</param>
+    /// <param name="channelCapacity">The capacity for the frame buffering channel.</param>
     /// <param name="diagnostics">The diagnostics sink for dropped frame counts.</param>
     public DelimitedFrameDecoder(
         ReadOnlyMemory<byte> delimiter,
         int maxFrameBytes,
         ChannelOverflowStrategy overflowStrategy,
+        int channelCapacity,
         TcpDelimitedClientDiagnostics diagnostics)
     {
         if (delimiter.Length == 0)
@@ -36,9 +38,15 @@ internal sealed class DelimitedFrameDecoder
             throw new ArgumentOutOfRangeException(nameof(maxFrameBytes), "MaxFrameBytes must be positive.");
         }
 
+        if (channelCapacity <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(channelCapacity), "ChannelCapacity must be positive.");
+        }
+
         _delimiter = delimiter;
         _maxFrameBytes = maxFrameBytes;
         _overflowStrategy = overflowStrategy;
+        _channelCapacity = channelCapacity;
         _diagnostics = diagnostics ?? throw new ArgumentNullException(nameof(diagnostics));
     }
 
@@ -54,7 +62,7 @@ internal sealed class DelimitedFrameDecoder
     {
         ArgumentNullException.ThrowIfNull(reader);
 
-        var channel = Channel.CreateBounded<IMemoryOwner<byte>>(new BoundedChannelOptions(DefaultChannelCapacity)
+        var channel = Channel.CreateBounded<IMemoryOwner<byte>>(new BoundedChannelOptions(_channelCapacity)
         {
             SingleReader = true,
             SingleWriter = true,
@@ -246,7 +254,7 @@ internal sealed class DelimitedFrameDecoder
     private readonly int _maxFrameBytes;
     private readonly ChannelOverflowStrategy _overflowStrategy;
     private readonly TcpDelimitedClientDiagnostics _diagnostics;
-    private const int DefaultChannelCapacity = 64;
+    private readonly int _channelCapacity;
 
     private readonly record struct ParseResult(
         SequencePosition Consumed,

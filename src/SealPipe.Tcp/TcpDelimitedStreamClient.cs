@@ -41,6 +41,7 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
             _delimiterBytes,
             _options.MaxFrameBytes,
             _options.ChannelOverflowStrategy,
+            _options.ChannelCapacity,
             Diagnostics);
     }
 
@@ -123,7 +124,7 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
-        var channel = Channel.CreateBounded<IMemoryOwner<byte>>(new BoundedChannelOptions(DefaultChannelCapacity)
+        var channel = Channel.CreateBounded<IMemoryOwner<byte>>(new BoundedChannelOptions(_options.ChannelCapacity)
         {
             SingleReader = true,
             SingleWriter = true,
@@ -433,7 +434,6 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
     private readonly CancellationTokenSource _disposeCts = new();
     private int _activeRead;
     private int _disposed;
-    private const int DefaultChannelCapacity = 64;
 
     private static readonly Action<ILogger, string, int, Exception?> LogConnected =
         LoggerMessage.Define<string, int>(

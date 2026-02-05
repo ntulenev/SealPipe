@@ -95,6 +95,17 @@ public sealed class TcpDelimitedClientOptionsTests
         act.Should().Throw<ArgumentOutOfRangeException>();
     }
 
+    [Fact(DisplayName = "Validate throws when channel capacity is not positive")]
+    [Trait("Category", "Unit")]
+    public void ValidateThrowsWhenChannelCapacityIsNotPositive()
+    {
+        // Arrange & Act
+        var act = () => CreateOptions(channelCapacity: 0).Validate();
+
+        // Assert
+        act.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
     [Fact(DisplayName = "Validate throws when reconnect initial delay is not positive")]
     [Trait("Category", "Unit")]
     public void ValidateThrowsWhenReconnectInitialDelayIsNotPositive()
@@ -189,6 +200,7 @@ public sealed class TcpDelimitedClientOptionsTests
         string? delimiter = null,
         string? encoding = null,
         int? maxFrameBytes = null,
+        int? channelCapacity = null,
         TimeSpan? connectTimeout = null,
         TimeSpan? readTimeout = null,
         KeepAliveOptions? keepAlive = null,
@@ -203,6 +215,7 @@ public sealed class TcpDelimitedClientOptionsTests
             ConnectTimeout = connectTimeout ?? TimeSpan.FromSeconds(2),
             ReadTimeout = readTimeout ?? TimeSpan.FromSeconds(2),
             MaxFrameBytes = maxFrameBytes ?? 1024,
+            ChannelCapacity = channelCapacity ?? 64,
             Reconnect = reconnect ?? new ReconnectOptions
             {
                 Enabled = false

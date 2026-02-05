@@ -20,6 +20,7 @@ public sealed class DelimitedFrameDecoderTests
             ReadOnlyMemory<byte>.Empty,
             64,
             ChannelOverflowStrategy.Drop,
+            64,
             new TcpDelimitedClientDiagnostics());
 
         // Assert
@@ -35,6 +36,23 @@ public sealed class DelimitedFrameDecoderTests
             Encoding.ASCII.GetBytes("\n"),
             0,
             ChannelOverflowStrategy.Drop,
+            64,
+            new TcpDelimitedClientDiagnostics());
+
+        // Assert
+        act.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact(DisplayName = "Throws when channel capacity is not positive")]
+    [Trait("Category", "Unit")]
+    public void ThrowsWhenChannelCapacityIsNotPositive()
+    {
+        // Arrange & Act
+        var act = () => new DelimitedFrameDecoder(
+            Encoding.ASCII.GetBytes("\n"),
+            64,
+            ChannelOverflowStrategy.Drop,
+            0,
             new TcpDelimitedClientDiagnostics());
 
         // Assert
@@ -51,6 +69,7 @@ public sealed class DelimitedFrameDecoderTests
             delimiter,
             64,
             ChannelOverflowStrategy.Drop,
+            64,
             new TcpDelimitedClientDiagnostics());
         var pipe = new Pipe();
 
@@ -75,6 +94,7 @@ public sealed class DelimitedFrameDecoderTests
             Encoding.ASCII.GetBytes("\n"),
             64,
             ChannelOverflowStrategy.Drop,
+            64,
             new TcpDelimitedClientDiagnostics());
         var pipe = new Pipe();
 
@@ -99,6 +119,7 @@ public sealed class DelimitedFrameDecoderTests
             Encoding.ASCII.GetBytes("\n"),
             64,
             ChannelOverflowStrategy.Drop,
+            64,
             new TcpDelimitedClientDiagnostics());
         var pipe = new Pipe();
 
@@ -122,6 +143,7 @@ public sealed class DelimitedFrameDecoderTests
             Encoding.ASCII.GetBytes("\n"),
             4,
             ChannelOverflowStrategy.Drop,
+            64,
             new TcpDelimitedClientDiagnostics());
         var pipe = new Pipe();
 
@@ -145,6 +167,7 @@ public sealed class DelimitedFrameDecoderTests
             Encoding.ASCII.GetBytes("\n"),
             64,
             ChannelOverflowStrategy.Drop,
+            64,
             new TcpDelimitedClientDiagnostics());
         var pipe = new Pipe();
 
