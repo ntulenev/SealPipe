@@ -86,9 +86,16 @@ internal sealed class ReconnectPolicy
             return delay;
         }
 
-        #pragma warning disable CA5394 // insecure RND is ok for tests
+#pragma warning disable CA5394
+
+        // Suppress CA5394: cryptographically secure randomness is unnecessary here.
+        // The value is used solely to add non-deterministic jitter to a delay and has
+        // no impact on security guarantees.
+
         var jitterMs = Random.Shared.NextDouble() * delay.TotalMilliseconds;
-        #pragma warning restore CA5394 
+
+#pragma warning restore CA5394
+
         return TimeSpan.FromMilliseconds(jitterMs);
     }
 
