@@ -63,4 +63,69 @@ public sealed class TcpDelimitedClientOptions
     /// Gets TCP keep-alive configuration.
     /// </summary>
     public KeepAliveOptions KeepAlive { get; init; } = new();
+
+    /// <summary>
+    /// Validates options.
+    /// </summary>
+    /// <exception cref="ArgumentException">Thrown when required values are missing.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when values are out of range.</exception>
+    public void Validate()
+    {
+        if (string.IsNullOrWhiteSpace(Host))
+        {
+            throw new ArgumentException("Host is required.", nameof(Host));
+        }
+
+        if (Port <= 0 || Port > 65535)
+        {
+            throw new ArgumentOutOfRangeException(nameof(Port), "Port must be between 1 and 65535.");
+        }
+
+        if (string.IsNullOrEmpty(Delimiter))
+        {
+            throw new ArgumentException("Delimiter is required.", nameof(Delimiter));
+        }
+
+        if (string.IsNullOrWhiteSpace(Encoding))
+        {
+            throw new ArgumentException("Encoding is required.", nameof(Encoding));
+        }
+
+        if (MaxFrameBytes <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(MaxFrameBytes), "MaxFrameBytes must be positive.");
+        }
+
+        if (ConnectTimeout <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(ConnectTimeout),
+                "ConnectTimeout must be greater than zero.");
+        }
+
+        if (ReadTimeout <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(ReadTimeout),
+                "ReadTimeout must be greater than zero.");
+        }
+
+        if (KeepAlive.Enabled)
+        {
+            if (KeepAlive.TcpKeepAliveTime <= TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(KeepAlive.TcpKeepAliveTime),
+                    "KeepAlive TcpKeepAliveTime must be greater than zero.");
+            }
+
+            if (KeepAlive.TcpKeepAliveInterval <= TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(KeepAlive.TcpKeepAliveInterval),
+                    "KeepAlive TcpKeepAliveInterval must be greater than zero.");
+            }
+        }
+
+    }
 }
