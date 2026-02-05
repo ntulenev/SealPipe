@@ -168,7 +168,6 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
     {
         var reconnectPolicy = new ReconnectPolicy(_options.Reconnect);
 
-#pragma warning disable CA1031 // Do not catch general exception types
         try
         {
             while (true)
@@ -232,11 +231,17 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
         {
             writer.TryComplete(oce);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (
+            ex is TcpProtocolException ||
+            ex is TcpReadTimeoutException ||
+            ex is TcpConnectException ||
+            ex is SocketException ||
+            ex is IOException ||
+            ex is ChannelClosedException ||
+            ex is ObjectDisposedException)
         {
             writer.TryComplete(ex);
         }
-#pragma warning restore CA1031 // Do not catch general exception types
     }
 
     private async IAsyncEnumerable<IMemoryOwner<byte>> ReadFromSocketAsync(
