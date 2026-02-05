@@ -86,9 +86,9 @@ internal sealed class ReconnectPolicy
             return delay;
         }
 
-#pragma warning disable CA5394 // Do not use insecure randomness
+        #pragma warning disable CA5394 // insecure RND is ok for tests
         var jitterMs = Random.Shared.NextDouble() * delay.TotalMilliseconds;
-#pragma warning restore CA5394 // Do not use insecure randomness
+        #pragma warning restore CA5394 
         return TimeSpan.FromMilliseconds(jitterMs);
     }
 
