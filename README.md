@@ -74,6 +74,7 @@ await foreach (var frame in client.ReadFramesAsync(demoCts.Token))
 | `MaxFrameBytes` | `int` | 1,048,576 | Max size for a single frame. |
 | `ChannelOverflowStrategy` | `ChannelOverflowStrategy` | `Drop` | Behavior when buffered frame channels are full. |
 | `ChannelCapacity` | `int` | 64 | Capacity for internal frame buffering channels. |
+| `ReceiveBufferSize` | `int` | 4096 | Buffer size used when reading from the socket. |
 | `KeepAlive.Enabled` | `bool` | false | Enables TCP keep-alives. |
 | `KeepAlive.TcpKeepAliveTime` | `TimeSpan` | 30s | Idle time before keep-alive probes. |
 | `KeepAlive.TcpKeepAliveInterval` | `TimeSpan` | 10s | Interval between keep-alive probes. |

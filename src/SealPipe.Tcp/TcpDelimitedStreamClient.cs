@@ -292,7 +292,7 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var memory = writer.GetMemory(4096);
+                var memory = writer.GetMemory(_options.ReceiveBufferSize);
                 var bytesRead = await ReceiveWithTimeoutAsync(socket, memory, cancellationToken)
                     .ConfigureAwait(false);
 

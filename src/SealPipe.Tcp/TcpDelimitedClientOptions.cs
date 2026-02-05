@@ -67,6 +67,12 @@ public sealed class TcpDelimitedClientOptions
     public int ChannelCapacity { get; init; } = 64;
 
     /// <summary>
+    /// Gets the receive buffer size used when reading from the socket.
+    /// </summary>
+    [Range(1, int.MaxValue)]
+    public int ReceiveBufferSize { get; init; } = 4096;
+
+    /// <summary>
     /// Gets TCP keep-alive configuration.
     /// </summary>
     public KeepAliveOptions KeepAlive { get; init; } = new();
@@ -130,6 +136,13 @@ public sealed class TcpDelimitedClientOptions
             throw new ArgumentOutOfRangeException(
                 nameof(ChannelCapacity),
                 "ChannelCapacity must be greater than zero.");
+        }
+
+        if (ReceiveBufferSize <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(ReceiveBufferSize),
+                "ReceiveBufferSize must be greater than zero.");
         }
 
         if (Reconnect.Enabled)

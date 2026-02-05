@@ -54,6 +54,11 @@ public sealed class TcpDelimitedStreamClientTests
 
         // Act & Assert
         act = () => TcpDelimitedStreamClient.Create(
+            CreateOptions(receiveBufferSize: 0));
+        act.Should().Throw<ArgumentOutOfRangeException>();
+
+        // Act & Assert
+        act = () => TcpDelimitedStreamClient.Create(
             CreateOptions(keepAlive: new KeepAliveOptions
             {
                 Enabled = true,
@@ -250,6 +255,7 @@ public sealed class TcpDelimitedStreamClientTests
         int? maxFrameBytes = null,
         TimeSpan? connectTimeout = null,
         TimeSpan? readTimeout = null,
+        int? receiveBufferSize = null,
         KeepAliveOptions? keepAlive = null)
     {
         return new TcpDelimitedClientOptions
@@ -260,6 +266,7 @@ public sealed class TcpDelimitedStreamClientTests
             Encoding = encoding ?? "utf-8",
             ConnectTimeout = connectTimeout ?? TimeSpan.FromSeconds(2),
             ReadTimeout = readTimeout ?? TimeSpan.FromSeconds(2),
+            ReceiveBufferSize = receiveBufferSize ?? 4096,
             MaxFrameBytes = maxFrameBytes ?? 1024,
             Reconnect = new ReconnectOptions
             {
