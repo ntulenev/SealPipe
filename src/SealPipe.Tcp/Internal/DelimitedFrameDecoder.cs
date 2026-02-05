@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Collections.Generic;
 using System.IO.Pipelines;
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
@@ -31,11 +32,6 @@ internal sealed class DelimitedFrameDecoder
         if (maxFrameBytes <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(maxFrameBytes), "MaxFrameBytes must be positive.");
-        }
-
-        if (overflowStrategy == ChannelOverflowStrategy.Block)
-        {
-            throw new NotSupportedException("ChannelOverflowStrategy.Block is not supported for this mode.");
         }
 
         _delimiter = delimiter;
@@ -118,8 +114,25 @@ internal sealed class DelimitedFrameDecoder
                     break;
                 }
 
+                var pendingFrames = _overflowStrategy == ChannelOverflowStrategy.Block
+                    ? new List<IMemoryOwner<byte>>()
+                    : null;
+
                 ParseResult parseResult;
-                parseResult = ParseFrames(buffer, writer);
+                try
+                {
+                    parseResult = ParseFrames(buffer, writer, pendingFrames);
+                }
+                catch
+                {
+                    DisposePendingFrames(pendingFrames);
+                    throw;
+                }
+
+                if (pendingFrames is { Count: > 0 })
+                {
+                    await WriteFramesAsync(writer, pendingFrames, cancellationToken).ConfigureAwait(false);
+                }
 
                 if (parseResult.RemainingLength > _maxFrameBytes)
                 {
@@ -154,7 +167,8 @@ internal sealed class DelimitedFrameDecoder
 
     private ParseResult ParseFrames(
         ReadOnlySequence<byte> buffer,
-        ChannelWriter<IMemoryOwner<byte>> writer)
+        ChannelWriter<IMemoryOwner<byte>> writer,
+        List<IMemoryOwner<byte>>? pendingFrames)
     {
         var consumed = buffer.Start;
         var examined = buffer.End;
@@ -172,21 +186,40 @@ internal sealed class DelimitedFrameDecoder
             consumed = sequenceReader.Position;
             examined = consumed;
 
-            PooledFrame? pooled = null;
-            try
+            if (_overflowStrategy == ChannelOverflowStrategy.Block)
             {
-                pooled = frame.Length == 0
-                    ? PooledFrame.CreateEmpty()
-                    : PooledFrame.CopyFrom(frame);
-
-                if (writer.TryWrite(pooled))
+                PooledFrame? pooled = null;
+                try
                 {
+                    pooled = frame.Length == 0
+                        ? PooledFrame.CreateEmpty()
+                        : PooledFrame.CopyFrom(frame);
+                    pendingFrames!.Add(pooled);
                     pooled = null;
                 }
+                finally
+                {
+                    pooled?.Dispose();
+                }
             }
-            finally
+            else
             {
-                pooled?.Dispose();
+                PooledFrame? pooled = null;
+                try
+                {
+                    pooled = frame.Length == 0
+                        ? PooledFrame.CreateEmpty()
+                        : PooledFrame.CopyFrom(frame);
+
+                    if (writer.TryWrite(pooled))
+                    {
+                        pooled = null;
+                    }
+                }
+                finally
+                {
+                    pooled?.Dispose();
+                }
             }
         }
 
@@ -194,15 +227,47 @@ internal sealed class DelimitedFrameDecoder
         return new ParseResult(consumed, examined, remainingLength);
     }
 
+    private static async ValueTask WriteFramesAsync(
+        ChannelWriter<IMemoryOwner<byte>> writer,
+        List<IMemoryOwner<byte>> frames,
+        CancellationToken cancellationToken)
+    {
+        var index = 0;
+        try
+        {
+            for (; index < frames.Count; index++)
+            {
+                await writer.WriteAsync(frames[index], cancellationToken).ConfigureAwait(false);
+            }
+        }
+        catch
+        {
+            for (var i = index; i < frames.Count; i++)
+            {
+                frames[i].Dispose();
+            }
+            throw;
+        }
+    }
+
+    private static void DisposePendingFrames(List<IMemoryOwner<byte>>? frames)
+    {
+        if (frames is null || frames.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var frame in frames)
+        {
+            frame.Dispose();
+        }
+    }
+
     private static BoundedChannelFullMode MapFullMode(ChannelOverflowStrategy strategy)
     {
-        return strategy switch
-        {
-            ChannelOverflowStrategy.Drop => BoundedChannelFullMode.DropWrite,
-            ChannelOverflowStrategy.Block => throw new NotSupportedException(
-                "ChannelOverflowStrategy.Block is not supported."),
-            _ => throw new ArgumentOutOfRangeException(nameof(strategy), strategy, "Unsupported overflow strategy.")
-        };
+        return strategy == ChannelOverflowStrategy.Block
+                   ? BoundedChannelFullMode.Wait
+                   : BoundedChannelFullMode.DropWrite;
     }
 
     private readonly ReadOnlyMemory<byte> _delimiter;
