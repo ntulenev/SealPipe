@@ -34,6 +34,11 @@ public sealed class TcpDelimitedStreamClientTests
 
         // Act & Assert
         act = () => TcpDelimitedStreamClient.Create(
+            CreateOptions(encoding: "not-a-real-encoding"));
+        act.Should().Throw<ArgumentException>();
+
+        // Act & Assert
+        act = () => TcpDelimitedStreamClient.Create(
             CreateOptions(maxFrameBytes: 0));
         act.Should().Throw<ArgumentOutOfRangeException>();
 

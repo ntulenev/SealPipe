@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text;
 
 namespace SealPipe.Tcp;
 
@@ -89,6 +90,14 @@ public sealed class TcpDelimitedClientOptions
         if (string.IsNullOrWhiteSpace(Encoding))
         {
             throw new ArgumentException("Encoding is required.", nameof(Encoding));
+        }
+        try
+        {
+            _ = System.Text.Encoding.GetEncoding(Encoding);
+        }
+        catch (Exception ex) when (ex is ArgumentException || ex is NotSupportedException)
+        {
+            throw new ArgumentException("Encoding is invalid or unsupported.", nameof(Encoding), ex);
         }
 
         if (MaxFrameBytes <= 0)
