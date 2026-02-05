@@ -137,6 +137,7 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
         {
             SingleReader = true,
             SingleWriter = true,
+            // Use Wait so TryWrite can detect overflow and update FramesDropped.
             FullMode = BoundedChannelFullMode.Wait
         });
 
