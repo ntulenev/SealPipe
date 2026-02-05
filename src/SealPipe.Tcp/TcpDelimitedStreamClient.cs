@@ -115,6 +115,17 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
 
         await _disposeCts.CancelAsync().ConfigureAwait(false);
         _disposeCts.Dispose();
+        var readLoop = Interlocked.Exchange(ref _readLoopTask, null);
+        if (readLoop is not null)
+        {
+            try
+            {
+                await readLoop.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
         await Task.CompletedTask.ConfigureAwait(false);
     }
 
@@ -131,6 +142,7 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
 
         using var runCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var runTask = RunReadLoopAsync(channel.Writer, runCts.Token);
+        _ = Interlocked.Exchange(ref _readLoopTask, runTask);
 
         try
         {
@@ -141,6 +153,7 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
         }
         finally
         {
+            _ = Interlocked.Exchange(ref _readLoopTask, null);
             if (!runTask.IsCompleted)
             {
                 await runCts.CancelAsync().ConfigureAwait(false);
@@ -442,6 +455,7 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
     private readonly SocketConnector _connector;
     private readonly DelimitedFrameDecoder _decoder;
     private readonly CancellationTokenSource _disposeCts = new();
+    private Task? _readLoopTask;
     private int _activeRead;
     private int _disposed;
 
