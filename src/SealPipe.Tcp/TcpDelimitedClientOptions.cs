@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text;
+using System.Threading;
 
 namespace SealPipe.Tcp;
 
@@ -40,6 +41,7 @@ public sealed class TcpDelimitedClientOptions
 
     /// <summary>
     /// Gets the maximum amount of time allowed without receiving any data.
+    /// Use <see cref="Timeout.InfiniteTimeSpan"/> to disable read timeouts.
     /// </summary>
     [Range(typeof(TimeSpan), "00:00:00.001", "1.00:00:00")]
     public TimeSpan ReadTimeout { get; init; } = TimeSpan.FromSeconds(30);
@@ -130,13 +132,13 @@ public sealed class TcpDelimitedClientOptions
                 $"ConnectTimeout must be less than or equal to {MaxConfiguredTimeout}.");
         }
 
-        if (ReadTimeout <= TimeSpan.Zero)
+        if (ReadTimeout != Timeout.InfiniteTimeSpan && ReadTimeout <= TimeSpan.Zero)
         {
             throw new ArgumentOutOfRangeException(
                 nameof(ReadTimeout),
                 "ReadTimeout must be greater than zero.");
         }
-        if (ReadTimeout > MaxConfiguredTimeout)
+        if (ReadTimeout != Timeout.InfiniteTimeSpan && ReadTimeout > MaxConfiguredTimeout)
         {
             throw new ArgumentOutOfRangeException(
                 nameof(ReadTimeout),

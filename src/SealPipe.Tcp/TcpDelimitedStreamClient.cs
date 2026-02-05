@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Channels;
 using System.Buffers;
+using System.Threading;
 
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -322,6 +323,12 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
         Memory<byte> buffer,
         CancellationToken cancellationToken)
     {
+        if (_options.ReadTimeout == Timeout.InfiniteTimeSpan)
+        {
+            return await socket.ReceiveAsync(buffer, SocketFlags.None, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeoutCts.CancelAfter(_options.ReadTimeout);
 
