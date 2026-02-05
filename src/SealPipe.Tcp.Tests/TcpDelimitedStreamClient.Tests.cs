@@ -496,10 +496,7 @@ public sealed class TcpDelimitedStreamClientTests
             }
             finally
             {
-                if (Interlocked.Exchange(ref _disposed, 1) == 0)
-                {
-                    _listener.Dispose();
-                }
+                DisposeListenerOnce();
             }
         }
 
@@ -516,13 +513,23 @@ public sealed class TcpDelimitedStreamClientTests
             }
             finally
             {
-                _listener.Stop();
-                _listener.Dispose();
+                DisposeListenerOnce();
             }
         }
 
         private readonly TcpListener _listener;
         private int _disposed;
+
+        private void DisposeListenerOnce()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) != 0)
+            {
+                return;
+            }
+
+            _listener.Stop();
+            _listener.Dispose();
+        }
     }
 
     private static TcpDelimitedClientOptions CreateValidOptions()
