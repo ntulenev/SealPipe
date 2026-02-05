@@ -27,6 +27,7 @@ var client = TcpDelimitedStreamClient.Create(
             MaxAttempts = 5
         },
         MaxFrameBytes = 1024 * 1024,
+        ChannelOverflowStrategy = ChannelOverflowStrategy.Block,
         KeepAlive = new KeepAliveOptions
         {
             Enabled = false

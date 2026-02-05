@@ -55,6 +55,11 @@ public sealed class TcpDelimitedClientOptions
     public int MaxFrameBytes { get; init; } = 1024 * 1024;
 
     /// <summary>
+    /// Gets the strategy used when buffered frame channels are full.
+    /// </summary>
+    public ChannelOverflowStrategy ChannelOverflowStrategy { get; init; } = ChannelOverflowStrategy.Block;
+
+    /// <summary>
     /// Gets TCP keep-alive configuration.
     /// </summary>
     public KeepAliveOptions KeepAlive { get; init; } = new();

@@ -26,6 +26,7 @@ var client = TcpDelimitedStreamClient.Create(
             MaxAttempts = 5
         },
         MaxFrameBytes = 1024 * 1024,
+        ChannelOverflowStrategy = ChannelOverflowStrategy.Block,
         KeepAlive = new KeepAliveOptions
         {
             Enabled = false
@@ -71,6 +72,7 @@ await foreach (var frame in client.ReadFramesAsync(demoCts.Token))
 | `Reconnect.Backoff` | `BackoffStrategy` | `ExponentialWithJitter` | Backoff algorithm. |
 | `Reconnect.MaxAttempts` | `int` | 0 | Max attempts; 0 means infinite. |
 | `MaxFrameBytes` | `int` | 1,048,576 | Max size for a single frame. |
+| `ChannelOverflowStrategy` | `ChannelOverflowStrategy` | `Block` | Behavior when buffered frame channels are full. |
 | `KeepAlive.Enabled` | `bool` | false | Enables TCP keep-alives. |
 | `KeepAlive.TcpKeepAliveTime` | `TimeSpan` | 30s | Idle time before keep-alive probes. |
 | `KeepAlive.TcpKeepAliveInterval` | `TimeSpan` | 10s | Interval between keep-alive probes. |

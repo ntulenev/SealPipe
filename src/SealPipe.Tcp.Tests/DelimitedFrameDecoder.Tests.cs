@@ -16,7 +16,7 @@ public sealed class DelimitedFrameDecoderTests
     public async Task ReadsDelimiterSplitAcrossSegments()
     {
         var delimiter = Encoding.ASCII.GetBytes("\r\n");
-        var decoder = new DelimitedFrameDecoder(delimiter, 64);
+        var decoder = new DelimitedFrameDecoder(delimiter, 64, ChannelOverflowStrategy.Block);
         var pipe = new Pipe();
 
         await pipe.Writer.WriteAsync(Encoding.ASCII.GetBytes("abc\r"));
@@ -32,7 +32,7 @@ public sealed class DelimitedFrameDecoderTests
     [Trait("Category", "Unit")]
     public async Task ReadsMultipleFramesInOneBuffer()
     {
-        var decoder = new DelimitedFrameDecoder(Encoding.ASCII.GetBytes("\n"), 64);
+        var decoder = new DelimitedFrameDecoder(Encoding.ASCII.GetBytes("\n"), 64, ChannelOverflowStrategy.Block);
         var pipe = new Pipe();
 
         await pipe.Writer.WriteAsync(Encoding.ASCII.GetBytes("a\nb\n"));
@@ -48,7 +48,7 @@ public sealed class DelimitedFrameDecoderTests
     [Trait("Category", "Unit")]
     public async Task ReadsEmptyFrame()
     {
-        var decoder = new DelimitedFrameDecoder(Encoding.ASCII.GetBytes("\n"), 64);
+        var decoder = new DelimitedFrameDecoder(Encoding.ASCII.GetBytes("\n"), 64, ChannelOverflowStrategy.Block);
         var pipe = new Pipe();
 
         await pipe.Writer.WriteAsync(Encoding.ASCII.GetBytes("\n"));
@@ -63,7 +63,7 @@ public sealed class DelimitedFrameDecoderTests
     [Trait("Category", "Unit")]
     public async Task ThrowsWhenFrameExceedsMaxBytes()
     {
-        var decoder = new DelimitedFrameDecoder(Encoding.ASCII.GetBytes("\n"), 4);
+        var decoder = new DelimitedFrameDecoder(Encoding.ASCII.GetBytes("\n"), 4, ChannelOverflowStrategy.Block);
         var pipe = new Pipe();
 
         await pipe.Writer.WriteAsync(Encoding.ASCII.GetBytes("12345"));

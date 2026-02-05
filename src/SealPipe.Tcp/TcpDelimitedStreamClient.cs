@@ -35,7 +35,10 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
         _encoding = Encoding.GetEncoding(_options.Encoding);
         _delimiterBytes = _encoding.GetBytes(_options.Delimiter);
         _connector = new SocketConnector(_options, _logger);
-        _decoder = new DelimitedFrameDecoder(_delimiterBytes, _options.MaxFrameBytes);
+        _decoder = new DelimitedFrameDecoder(
+            _delimiterBytes,
+            _options.MaxFrameBytes,
+            _options.ChannelOverflowStrategy);
         Diagnostics = new TcpDelimitedClientDiagnostics();
     }
 
@@ -116,7 +119,7 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
         {
             SingleReader = true,
             SingleWriter = true,
-            FullMode = BoundedChannelFullMode.Wait
+            FullMode = MapFullMode(_options.ChannelOverflowStrategy)
         });
 
         using var runCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -172,7 +175,7 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
                     await foreach (var frame in ReadFromSocketAsync(socket, cancellationToken).ConfigureAwait(false))
                     {
                         Diagnostics.AddFrame();
-                        await writer.WriteAsync(frame, cancellationToken).ConfigureAwait(false);
+                        await WriteFrameAsync(writer, frame, cancellationToken).ConfigureAwait(false);
                     }
 
                     if (!_options.Reconnect.Enabled)
@@ -395,6 +398,38 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
     private void ThrowIfDisposed()
     {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) == 1, this);
+    }
+
+    private async ValueTask WriteFrameAsync(
+        ChannelWriter<IMemoryOwner<byte>> writer,
+        IMemoryOwner<byte> frame,
+        CancellationToken cancellationToken)
+    {
+        if (_options.ChannelOverflowStrategy == ChannelOverflowStrategy.Block)
+        {
+            try
+            {
+                await writer.WriteAsync(frame, cancellationToken).ConfigureAwait(false);
+                return;
+            }
+            catch
+            {
+                frame.Dispose();
+                throw;
+            }
+        }
+
+        if (!writer.TryWrite(frame))
+        {
+            frame.Dispose();
+        }
+    }
+
+    private static BoundedChannelFullMode MapFullMode(ChannelOverflowStrategy strategy)
+    {
+        return strategy == ChannelOverflowStrategy.Block
+            ? BoundedChannelFullMode.Wait
+            : BoundedChannelFullMode.DropWrite;
     }
 
     private sealed class ReadGuard : IDisposable
