@@ -376,6 +376,23 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
                 "ReadTimeout must be greater than zero.");
         }
 
+        if (options.KeepAlive.Enabled)
+        {
+            if (options.KeepAlive.TcpKeepAliveTime <= TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(options),
+                    "KeepAlive TcpKeepAliveTime must be greater than zero.");
+            }
+
+            if (options.KeepAlive.TcpKeepAliveInterval <= TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(options),
+                    "KeepAlive TcpKeepAliveInterval must be greater than zero.");
+            }
+        }
+
         return options;
     }
 
