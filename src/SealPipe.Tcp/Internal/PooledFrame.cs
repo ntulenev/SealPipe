@@ -62,7 +62,7 @@ internal sealed class PooledFrame : IMemoryOwner<byte>
     /// Creates an empty frame that does not allocate from the pool.
     /// </summary>
     /// <returns>An empty pooled frame.</returns>
-    public static PooledFrame CreateEmpty() => new(Array.Empty<byte>(), 0, returnToPool: false);
+    public static PooledFrame CreateEmpty() => new([], 0, returnToPool: false);
 
     private byte[]? _buffer;
     private readonly int _length;
