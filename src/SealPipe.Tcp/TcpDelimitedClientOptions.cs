@@ -123,12 +123,24 @@ public sealed class TcpDelimitedClientOptions
                 nameof(ConnectTimeout),
                 "ConnectTimeout must be greater than zero.");
         }
+        if (ConnectTimeout > MaxConfiguredTimeout)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(ConnectTimeout),
+                $"ConnectTimeout must be less than or equal to {MaxConfiguredTimeout}.");
+        }
 
         if (ReadTimeout <= TimeSpan.Zero)
         {
             throw new ArgumentOutOfRangeException(
                 nameof(ReadTimeout),
                 "ReadTimeout must be greater than zero.");
+        }
+        if (ReadTimeout > MaxConfiguredTimeout)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(ReadTimeout),
+                $"ReadTimeout must be less than or equal to {MaxConfiguredTimeout}.");
         }
 
         if (ChannelCapacity <= 0)
@@ -187,4 +199,6 @@ public sealed class TcpDelimitedClientOptions
         }
 
     }
+
+    private static readonly TimeSpan MaxConfiguredTimeout = TimeSpan.FromDays(1);
 }
