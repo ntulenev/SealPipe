@@ -48,6 +48,10 @@ internal sealed class SocketConnector
         catch (Exception ex)
         {
             socket.Dispose();
+            if (ex is OperationCanceledException && cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             if (ex is TcpConnectException)
             {
                 throw;

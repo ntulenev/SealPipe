@@ -49,9 +49,9 @@ public sealed class SocketConnectorTests
         exception.Which.Message.Should().Contain($"{options.Host}:{options.Port}");
     }
 
-    [Fact(DisplayName = "ConnectAsync wraps cancellation in TcpConnectException")]
+    [Fact(DisplayName = "ConnectAsync propagates cancellation")]
     [Trait("Category", "Unit")]
-    public async Task ConnectAsyncWrapsCancellationInTcpConnectException()
+    public async Task ConnectAsyncPropagatesCancellation()
     {
         // Arrange
         var options = CreateOptions(12345);
@@ -63,8 +63,7 @@ public sealed class SocketConnectorTests
         var act = async () => await connector.ConnectAsync(cts.Token);
 
         // Assert
-        var exception = await act.Should().ThrowAsync<TcpConnectException>();
-        exception.Which.InnerException.Should().BeAssignableTo<OperationCanceledException>();
+        await act.Should().ThrowAsync<OperationCanceledException>();
     }
 
     private static TcpDelimitedClientOptions CreateOptions(int port)
