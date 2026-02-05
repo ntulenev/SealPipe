@@ -137,7 +137,7 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
         {
             SingleReader = true,
             SingleWriter = true,
-            FullMode = MapFullMode(_options.ChannelOverflowStrategy)
+            FullMode = BoundedChannelFullMode.Wait
         });
 
         using var runCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -424,13 +424,6 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
         Diagnostics.AddDroppedFrame();
         frame.Dispose();
         return false;
-    }
-
-    private static BoundedChannelFullMode MapFullMode(ChannelOverflowStrategy strategy)
-    {
-        return strategy == ChannelOverflowStrategy.Block
-            ? BoundedChannelFullMode.Wait
-            : BoundedChannelFullMode.DropWrite;
     }
 
     private sealed class ReadGuard : IDisposable
