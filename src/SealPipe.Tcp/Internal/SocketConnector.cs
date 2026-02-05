@@ -11,6 +11,12 @@ namespace SealPipe.Tcp.Internal;
 /// </summary>
 internal sealed class SocketConnector
 {
+    private static readonly Action<ILogger, Exception?> LogKeepAliveFailed =
+        LoggerMessage.Define(
+            LogLevel.Warning,
+            new EventId(1, "KeepAliveConfigFailed"),
+            "Failed to configure TCP keep-alive options.");
+
     /// <summary>
     /// Initializes a new instance of the <see cref="SocketConnector"/> class.
     /// </summary>
@@ -56,7 +62,6 @@ internal sealed class SocketConnector
     {
         if (_options.KeepAlive.Enabled)
         {
-#pragma warning disable CA1031 // Do not catch general exception types
             try
             {
                 socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
@@ -69,11 +74,17 @@ internal sealed class SocketConnector
                     SocketOptionName.TcpKeepAliveInterval,
                     (int)_options.KeepAlive.TcpKeepAliveInterval.TotalSeconds);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (
+                ex is SocketException ||
+                ex is ArgumentException ||
+                ex is PlatformNotSupportedException ||
+                ex is NotSupportedException)
             {
-                _logger?.LogWarning(ex, "Failed to configure TCP keep-alive options.");
+                if (_logger is not null)
+                {
+                    LogKeepAliveFailed(_logger, ex);
+                }
             }
-#pragma warning restore CA1031 // Do not catch general exception types
         }
     }
 

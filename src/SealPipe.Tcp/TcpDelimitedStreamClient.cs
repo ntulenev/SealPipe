@@ -180,10 +180,7 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
                 {
                     socket = await _connector.ConnectAsync(cancellationToken).ConfigureAwait(false);
                     reconnectPolicy.Reset();
-                    _logger.LogInformation(
-                        "Connected to {Host}:{Port}.",
-                        _options.Host,
-                        _options.Port);
+                    LogConnected(_logger, _options.Host, _options.Port, null);
 
                     await foreach (var frame in ReadFromSocketAsync(socket, cancellationToken).ConfigureAwait(false))
                     {
@@ -200,7 +197,7 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
                     }
 
                     Diagnostics.AddReconnectAttempt();
-                    _logger.LogWarning("Connection closed. Reconnecting...");
+                    LogConnectionClosed(_logger, null);
                 }
                 catch (Exception ex) when (ShouldReconnect(ex, cancellationToken))
                 {
@@ -211,7 +208,7 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
                     }
 
                     Diagnostics.AddReconnectAttempt();
-                    _logger.LogWarning(ex, "Connection failed. Reconnecting...");
+                    LogConnectionFailed(_logger, ex);
                 }
                 finally
                 {
@@ -432,4 +429,22 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
     private int _activeRead;
     private int _disposed;
     private const int DefaultChannelCapacity = 64;
+
+    private static readonly Action<ILogger, string, int, Exception?> LogConnected =
+        LoggerMessage.Define<string, int>(
+            LogLevel.Information,
+            new EventId(1, "Connected"),
+            "Connected to {Host}:{Port}.");
+
+    private static readonly Action<ILogger, Exception?> LogConnectionClosed =
+        LoggerMessage.Define(
+            LogLevel.Warning,
+            new EventId(2, "ConnectionClosed"),
+            "Connection closed. Reconnecting...");
+
+    private static readonly Action<ILogger, Exception?> LogConnectionFailed =
+        LoggerMessage.Define(
+            LogLevel.Warning,
+            new EventId(3, "ConnectionFailed"),
+            "Connection failed. Reconnecting...");
 }
