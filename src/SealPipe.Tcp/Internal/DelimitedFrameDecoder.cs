@@ -24,13 +24,13 @@ internal sealed class DelimitedFrameDecoder
         _maxFrameBytes = maxFrameBytes;
     }
 
-    public IAsyncEnumerable<ReadOnlyMemory<byte>> ReadFramesAsync(
+    public IAsyncEnumerable<IMemoryOwner<byte>> ReadFramesAsync(
         PipeReader reader,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(reader);
 
-        var channel = Channel.CreateBounded<ReadOnlyMemory<byte>>(new BoundedChannelOptions(DefaultChannelCapacity)
+        var channel = Channel.CreateBounded<IMemoryOwner<byte>>(new BoundedChannelOptions(DefaultChannelCapacity)
         {
             SingleReader = true,
             SingleWriter = true,
@@ -43,8 +43,8 @@ internal sealed class DelimitedFrameDecoder
         return ReadAllWithCleanupAsync(channel.Reader, decodeTask, decodeCts, cancellationToken);
     }
 
-    private static async IAsyncEnumerable<ReadOnlyMemory<byte>> ReadAllWithCleanupAsync(
-        ChannelReader<ReadOnlyMemory<byte>> reader,
+    private static async IAsyncEnumerable<IMemoryOwner<byte>> ReadAllWithCleanupAsync(
+        ChannelReader<IMemoryOwner<byte>> reader,
         Task decodeTask,
         CancellationTokenSource decodeCts,
         [EnumeratorCancellation] CancellationToken cancellationToken)
@@ -75,7 +75,7 @@ internal sealed class DelimitedFrameDecoder
 
     private async Task RunDecodeAsync(
         PipeReader reader,
-        ChannelWriter<ReadOnlyMemory<byte>> writer,
+        ChannelWriter<IMemoryOwner<byte>> writer,
         CancellationToken cancellationToken)
     {
 #pragma warning disable CA1031 // Do not catch general exception types
@@ -128,7 +128,7 @@ internal sealed class DelimitedFrameDecoder
 
     private void ParseFrames(
         ReadOnlySequence<byte> buffer,
-        ChannelWriter<ReadOnlyMemory<byte>> writer,
+        ChannelWriter<IMemoryOwner<byte>> writer,
         out SequencePosition consumed,
         out SequencePosition examined,
         out long remainingLength)
@@ -151,11 +151,33 @@ internal sealed class DelimitedFrameDecoder
 
             if (frame.Length == 0)
             {
-                _ = writer.TryWrite(ReadOnlyMemory<byte>.Empty);
+                var empty = PooledFrame.CreateEmpty();
+                try
+                {
+                    if (writer.TryWrite(empty))
+                    {
+                        empty = null;
+                    }
+                }
+                finally
+                {
+                    empty?.Dispose();
+                }
             }
             else
             {
-                _ = writer.TryWrite(frame.ToArray());
+                var pooled = PooledFrame.CopyFrom(frame);
+                try
+                {
+                    if (writer.TryWrite(pooled))
+                    {
+                        pooled = null;
+                    }
+                }
+                finally
+                {
+                    pooled?.Dispose();
+                }
             }
         }
 

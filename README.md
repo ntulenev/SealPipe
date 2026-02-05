@@ -49,7 +49,10 @@ Read raw frames instead of strings:
 ```csharp
 await foreach (var frame in client.ReadFramesAsync(demoCts.Token))
 {
-    // frame is ReadOnlyMemory<byte>
+    using (frame)
+    {
+        // frame.Memory is ReadOnlyMemory<byte>
+    }
 }
 ```
 

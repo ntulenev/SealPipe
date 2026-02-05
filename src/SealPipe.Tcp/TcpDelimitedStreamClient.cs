@@ -4,6 +4,7 @@ using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Channels;
+using System.Buffers;
 
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -68,12 +69,19 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
 
         await foreach (var frame in ReadFramesCoreAsync(linkedCts.Token).ConfigureAwait(false))
         {
-            yield return FrameToStringDecoder.Decode(frame, _encoding);
+            try
+            {
+                yield return FrameToStringDecoder.Decode(frame.Memory, _encoding);
+            }
+            finally
+            {
+                frame.Dispose();
+            }
         }
     }
 
     /// <inheritdoc />
-    public async IAsyncEnumerable<ReadOnlyMemory<byte>> ReadFramesAsync(
+    public async IAsyncEnumerable<IMemoryOwner<byte>> ReadFramesAsync(
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
@@ -100,11 +108,11 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
         await Task.CompletedTask.ConfigureAwait(false);
     }
 
-    private async IAsyncEnumerable<ReadOnlyMemory<byte>> ReadFramesCoreAsync(
+    private async IAsyncEnumerable<IMemoryOwner<byte>> ReadFramesCoreAsync(
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
-        var channel = Channel.CreateBounded<ReadOnlyMemory<byte>>(new BoundedChannelOptions(DefaultChannelCapacity)
+        var channel = Channel.CreateBounded<IMemoryOwner<byte>>(new BoundedChannelOptions(DefaultChannelCapacity)
         {
             SingleReader = true,
             SingleWriter = true,
@@ -139,7 +147,7 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
     }
 
     private async Task RunReadLoopAsync(
-        ChannelWriter<ReadOnlyMemory<byte>> writer,
+        ChannelWriter<IMemoryOwner<byte>> writer,
         CancellationToken cancellationToken)
     {
         var reconnectPolicy = new ReconnectPolicy(_options.Reconnect);
@@ -216,7 +224,7 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
 #pragma warning restore CA1031 // Do not catch general exception types
     }
 
-    private async IAsyncEnumerable<ReadOnlyMemory<byte>> ReadFromSocketAsync(
+    private async IAsyncEnumerable<IMemoryOwner<byte>> ReadFromSocketAsync(
         Socket socket,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {

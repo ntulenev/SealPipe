@@ -1,3 +1,5 @@
+using System.Buffers;
+
 namespace SealPipe.Tcp;
 
 /// <summary>
@@ -16,6 +18,6 @@ public interface ITcpDelimitedStreamClient
     /// Reads delimited frames as raw bytes.
     /// </summary>
     /// <param name="cancellationToken">The token used to cancel the read operation.</param>
-    /// <returns>A stream of frame buffers.</returns>
-    IAsyncEnumerable<ReadOnlyMemory<byte>> ReadFramesAsync(CancellationToken cancellationToken = default);
+    /// <returns>A stream of frame buffers. The caller must dispose each frame to return pooled buffers.</returns>
+    IAsyncEnumerable<IMemoryOwner<byte>> ReadFramesAsync(CancellationToken cancellationToken = default);
 }

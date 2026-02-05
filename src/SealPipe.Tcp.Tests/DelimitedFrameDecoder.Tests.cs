@@ -1,5 +1,6 @@
 using System.IO.Pipelines;
 using System.Text;
+using System.Buffers;
 
 using FluentAssertions;
 
@@ -24,7 +25,7 @@ public sealed class DelimitedFrameDecoderTests
 
         var frames = await CollectAsync(decoder.ReadFramesAsync(pipe.Reader, CancellationToken.None));
         frames.Should().HaveCount(1);
-        Encoding.ASCII.GetString(frames[0].Span).Should().Be("abc");
+        Encoding.ASCII.GetString(frames[0]).Should().Be("abc");
     }
 
     [Fact(DisplayName = "Reads multiple frames in one buffer")]
@@ -39,8 +40,8 @@ public sealed class DelimitedFrameDecoderTests
 
         var frames = await CollectAsync(decoder.ReadFramesAsync(pipe.Reader, CancellationToken.None));
         frames.Should().HaveCount(2);
-        Encoding.ASCII.GetString(frames[0].Span).Should().Be("a");
-        Encoding.ASCII.GetString(frames[1].Span).Should().Be("b");
+        Encoding.ASCII.GetString(frames[0]).Should().Be("a");
+        Encoding.ASCII.GetString(frames[1]).Should().Be("b");
     }
 
     [Fact(DisplayName = "Reads empty frame")]
@@ -55,7 +56,7 @@ public sealed class DelimitedFrameDecoderTests
 
         var frames = await CollectAsync(decoder.ReadFramesAsync(pipe.Reader, CancellationToken.None));
         frames.Should().HaveCount(1);
-        frames[0].IsEmpty.Should().BeTrue();
+        frames[0].Length.Should().Be(0);
     }
 
     [Fact(DisplayName = "Throws when frame exceeds max bytes")]
@@ -74,22 +75,26 @@ public sealed class DelimitedFrameDecoderTests
         await act.Should().ThrowAsync<TcpProtocolException>();
     }
 
-    private static async Task<List<ReadOnlyMemory<byte>>> CollectAsync(
-        IAsyncEnumerable<ReadOnlyMemory<byte>> frames)
+    private static async Task<List<byte[]>> CollectAsync(
+        IAsyncEnumerable<IMemoryOwner<byte>> frames)
     {
-        var results = new List<ReadOnlyMemory<byte>>();
+        var results = new List<byte[]>();
         await foreach (var frame in frames)
         {
-            results.Add(frame);
+            using (frame)
+            {
+                results.Add(frame.Memory.ToArray());
+            }
         }
 
         return results;
     }
 
-    private static async Task ConsumeAsync(IAsyncEnumerable<ReadOnlyMemory<byte>> frames)
+    private static async Task ConsumeAsync(IAsyncEnumerable<IMemoryOwner<byte>> frames)
     {
-        await foreach (var _ in frames)
+        await foreach (var frame in frames)
         {
+            frame.Dispose();
         }
     }
 }
