@@ -30,7 +30,8 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        _options = ValidateOptions(options);
+        options.Validate();
+        _options = options;
         _logger = logger ?? NullLogger<TcpDelimitedStreamClient>.Instance;
         _encoding = Encoding.GetEncoding(_options.Encoding);
         _delimiterBytes = _encoding.GetBytes(_options.Delimiter);
@@ -345,67 +346,6 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
             IOException => true,
             _ => false
         };
-    }
-
-    private static TcpDelimitedClientOptions ValidateOptions(TcpDelimitedClientOptions options)
-    {
-        if (string.IsNullOrWhiteSpace(options.Host))
-        {
-            throw new ArgumentException("Host is required.", nameof(options));
-        }
-
-        if (options.Port <= 0 || options.Port > 65535)
-        {
-            throw new ArgumentOutOfRangeException(nameof(options), "Port must be between 1 and 65535.");
-        }
-
-        if (string.IsNullOrEmpty(options.Delimiter))
-        {
-            throw new ArgumentException("Delimiter is required.", nameof(options));
-        }
-
-        if (string.IsNullOrWhiteSpace(options.Encoding))
-        {
-            throw new ArgumentException("Encoding is required.", nameof(options));
-        }
-
-        if (options.MaxFrameBytes <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(options), "MaxFrameBytes must be positive.");
-        }
-
-        if (options.ConnectTimeout <= TimeSpan.Zero)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(options),
-                "ConnectTimeout must be greater than zero.");
-        }
-
-        if (options.ReadTimeout <= TimeSpan.Zero)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(options),
-                "ReadTimeout must be greater than zero.");
-        }
-
-        if (options.KeepAlive.Enabled)
-        {
-            if (options.KeepAlive.TcpKeepAliveTime <= TimeSpan.Zero)
-            {
-                throw new ArgumentOutOfRangeException(
-                    nameof(options),
-                    "KeepAlive TcpKeepAliveTime must be greater than zero.");
-            }
-
-            if (options.KeepAlive.TcpKeepAliveInterval <= TimeSpan.Zero)
-            {
-                throw new ArgumentOutOfRangeException(
-                    nameof(options),
-                    "KeepAlive TcpKeepAliveInterval must be greater than zero.");
-            }
-        }
-
-        return options;
     }
 
     private ReadGuard StartReadGuard()
