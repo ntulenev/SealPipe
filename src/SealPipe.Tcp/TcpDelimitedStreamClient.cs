@@ -126,7 +126,6 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
             {
             }
         }
-        await Task.CompletedTask.ConfigureAwait(false);
     }
 
     private async IAsyncEnumerable<IMemoryOwner<byte>> ReadFramesCoreAsync(
@@ -403,28 +402,32 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
         IMemoryOwner<byte> frame,
         CancellationToken cancellationToken)
     {
-        if (_options.ChannelOverflowStrategy == ChannelOverflowStrategy.Block)
+        var written = false;
+        try
         {
-            try
+            if (_options.ChannelOverflowStrategy == ChannelOverflowStrategy.Block)
             {
                 await writer.WriteAsync(frame, cancellationToken).ConfigureAwait(false);
+                written = true;
                 return true;
             }
-            catch
+
+            if (writer.TryWrite(frame))
+            {
+                written = true;
+                return true;
+            }
+
+            Diagnostics.AddDroppedFrame();
+            return false;
+        }
+        finally
+        {
+            if (!written)
             {
                 frame.Dispose();
-                throw;
             }
         }
-
-        if (writer.TryWrite(frame))
-        {
-            return true;
-        }
-
-        Diagnostics.AddDroppedFrame();
-        frame.Dispose();
-        return false;
     }
 
     private sealed class ReadGuard : IDisposable
