@@ -1,5 +1,5 @@
 # SealPipe
-Production-grade .NET TCP streaming library built on top of `System.IO.Pipelines`.
+TCP streaming library built on top of `System.IO.Pipelines`.
 
 ## Usage
 ```csharp
