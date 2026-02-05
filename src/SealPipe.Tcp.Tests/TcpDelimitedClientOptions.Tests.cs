@@ -95,6 +95,64 @@ public sealed class TcpDelimitedClientOptionsTests
         act.Should().Throw<ArgumentOutOfRangeException>();
     }
 
+    [Fact(DisplayName = "Validate throws when reconnect initial delay is not positive")]
+    [Trait("Category", "Unit")]
+    public void ValidateThrowsWhenReconnectInitialDelayIsNotPositive()
+    {
+        // Arrange
+        var options = CreateOptions(reconnect: new ReconnectOptions
+        {
+            Enabled = true,
+            InitialDelay = TimeSpan.Zero,
+            MaxDelay = TimeSpan.FromMilliseconds(1)
+        });
+
+        // Act
+        var act = () => options.Validate();
+
+        // Assert
+        act.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact(DisplayName = "Validate throws when reconnect max delay is not positive")]
+    [Trait("Category", "Unit")]
+    public void ValidateThrowsWhenReconnectMaxDelayIsNotPositive()
+    {
+        // Arrange
+        var options = CreateOptions(reconnect: new ReconnectOptions
+        {
+            Enabled = true,
+            InitialDelay = TimeSpan.FromMilliseconds(1),
+            MaxDelay = TimeSpan.Zero
+        });
+
+        // Act
+        var act = () => options.Validate();
+
+        // Assert
+        act.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact(DisplayName = "Validate throws when reconnect max attempts is negative")]
+    [Trait("Category", "Unit")]
+    public void ValidateThrowsWhenReconnectMaxAttemptsIsNegative()
+    {
+        // Arrange
+        var options = CreateOptions(reconnect: new ReconnectOptions
+        {
+            Enabled = true,
+            InitialDelay = TimeSpan.FromMilliseconds(1),
+            MaxDelay = TimeSpan.FromMilliseconds(1),
+            MaxAttempts = -1
+        });
+
+        // Act
+        var act = () => options.Validate();
+
+        // Assert
+        act.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
     [Fact(DisplayName = "Validate throws when keep-alive time is not positive")]
     [Trait("Category", "Unit")]
     public void ValidateThrowsWhenKeepAliveTimeIsNotPositive()
@@ -133,7 +191,8 @@ public sealed class TcpDelimitedClientOptionsTests
         int? maxFrameBytes = null,
         TimeSpan? connectTimeout = null,
         TimeSpan? readTimeout = null,
-        KeepAliveOptions? keepAlive = null)
+        KeepAliveOptions? keepAlive = null,
+        ReconnectOptions? reconnect = null)
     {
         return new TcpDelimitedClientOptions
         {
@@ -144,7 +203,7 @@ public sealed class TcpDelimitedClientOptionsTests
             ConnectTimeout = connectTimeout ?? TimeSpan.FromSeconds(2),
             ReadTimeout = readTimeout ?? TimeSpan.FromSeconds(2),
             MaxFrameBytes = maxFrameBytes ?? 1024,
-            Reconnect = new ReconnectOptions
+            Reconnect = reconnect ?? new ReconnectOptions
             {
                 Enabled = false
             },
