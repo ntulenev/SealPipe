@@ -104,10 +104,11 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
-        var channel = Channel.CreateUnbounded<ReadOnlyMemory<byte>>(new UnboundedChannelOptions
+        var channel = Channel.CreateBounded<ReadOnlyMemory<byte>>(new BoundedChannelOptions(DefaultChannelCapacity)
         {
             SingleReader = true,
-            SingleWriter = true
+            SingleWriter = true,
+            FullMode = BoundedChannelFullMode.Wait
         });
 
         using var runCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -122,8 +123,18 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
         }
         finally
         {
-            await runCts.CancelAsync().ConfigureAwait(false);
-            await runTask.ConfigureAwait(false);
+            if (!runTask.IsCompleted)
+            {
+                await runCts.CancelAsync().ConfigureAwait(false);
+            }
+
+            try
+            {
+                await runTask.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+            }
         }
     }
 
@@ -222,8 +233,18 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
         }
         finally
         {
-            await fillCts.CancelAsync().ConfigureAwait(false);
-            await fillTask.ConfigureAwait(false);
+            if (!fillTask.IsCompleted)
+            {
+                await fillCts.CancelAsync().ConfigureAwait(false);
+            }
+
+            try
+            {
+                await fillTask.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+            }
         }
     }
 
@@ -392,4 +413,5 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
     private readonly CancellationTokenSource _disposeCts = new();
     private int _activeRead;
     private int _disposed;
+    private const int DefaultChannelCapacity = 64;
 }

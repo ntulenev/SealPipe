@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.IO.Pipelines;
+using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 using SealPipe.Tcp.Exceptions;
 
@@ -29,14 +30,47 @@ internal sealed class DelimitedFrameDecoder
     {
         ArgumentNullException.ThrowIfNull(reader);
 
-        var channel = Channel.CreateUnbounded<ReadOnlyMemory<byte>>(new UnboundedChannelOptions
+        var channel = Channel.CreateBounded<ReadOnlyMemory<byte>>(new BoundedChannelOptions(DefaultChannelCapacity)
         {
             SingleReader = true,
-            SingleWriter = true
+            SingleWriter = true,
+            FullMode = BoundedChannelFullMode.Wait
         });
 
-        _ = RunDecodeAsync(reader, channel.Writer, cancellationToken);
-        return channel.Reader.ReadAllAsync(cancellationToken);
+        using var decodeCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var decodeTask = RunDecodeAsync(reader, channel.Writer, decodeCts.Token);
+
+        return ReadAllWithCleanupAsync(channel.Reader, decodeTask, decodeCts, cancellationToken);
+    }
+
+    private static async IAsyncEnumerable<ReadOnlyMemory<byte>> ReadAllWithCleanupAsync(
+        ChannelReader<ReadOnlyMemory<byte>> reader,
+        Task decodeTask,
+        CancellationTokenSource decodeCts,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        try
+        {
+            await foreach (var frame in reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+            {
+                yield return frame;
+            }
+        }
+        finally
+        {
+            if (!decodeTask.IsCompleted)
+            {
+                await decodeCts.CancelAsync().ConfigureAwait(false);
+            }
+
+            try
+            {
+                await decodeTask.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+            }
+        }
     }
 
     private async Task RunDecodeAsync(
@@ -130,4 +164,5 @@ internal sealed class DelimitedFrameDecoder
 
     private readonly ReadOnlyMemory<byte> _delimiter;
     private readonly int _maxFrameBytes;
+    private const int DefaultChannelCapacity = 64;
 }
