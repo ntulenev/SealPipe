@@ -38,16 +38,17 @@ internal sealed class SocketConnector
     /// <returns>The connected socket.</returns>
     public async Task<Socket> ConnectAsync(CancellationToken cancellationToken)
     {
-        var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
+        Socket socket = null!;
         try
         {
+            socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
             ConfigureSocket(socket);
             await ConnectWithTimeoutAsync(socket, cancellationToken).ConfigureAwait(false);
             return socket;
         }
         catch (Exception ex)
         {
-            socket.Dispose();
+            socket?.Dispose();
             if (ex is OperationCanceledException && cancellationToken.IsCancellationRequested)
             {
                 throw;
