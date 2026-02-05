@@ -6,8 +6,16 @@ using SealPipe.Tcp.Exceptions;
 
 namespace SealPipe.Tcp.Internal;
 
+/// <summary>
+/// Creates and configures TCP sockets for the client.
+/// </summary>
 internal sealed class SocketConnector
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SocketConnector"/> class.
+    /// </summary>
+    /// <param name="options">The client configuration.</param>
+    /// <param name="logger">The logger instance, if any.</param>
     public SocketConnector(
         TcpDelimitedClientOptions options,
         ILogger? logger)
@@ -17,6 +25,11 @@ internal sealed class SocketConnector
         _logger = logger;
     }
 
+    /// <summary>
+    /// Opens a TCP socket to the configured host and port.
+    /// </summary>
+    /// <param name="cancellationToken">The token used to cancel the connection attempt.</param>
+    /// <returns>The connected socket.</returns>
     public async Task<Socket> ConnectAsync(CancellationToken cancellationToken)
     {
         var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);

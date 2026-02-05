@@ -1,18 +1,33 @@
 namespace SealPipe.Tcp.Internal;
 
+/// <summary>
+/// Computes reconnect delays based on configured options.
+/// </summary>
 internal sealed class ReconnectPolicy
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ReconnectPolicy"/> class.
+    /// </summary>
+    /// <param name="options">The reconnect configuration.</param>
     public ReconnectPolicy(ReconnectOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
         _options = options;
     }
 
+    /// <summary>
+    /// Resets the reconnect attempt counter.
+    /// </summary>
     public void Reset()
     {
         _ = Interlocked.Exchange(ref _attempts, 0);
     }
 
+    /// <summary>
+    /// Computes the next delay and increments the attempt count.
+    /// </summary>
+    /// <param name="delay">The computed delay.</param>
+    /// <returns><c>true</c> if another attempt is allowed; otherwise <c>false</c>.</returns>
     public bool TryGetNextDelay(out TimeSpan delay)
     {
         if (!_options.Enabled)

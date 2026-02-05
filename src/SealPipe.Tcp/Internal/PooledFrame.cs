@@ -3,6 +3,9 @@ using System.Threading;
 
 namespace SealPipe.Tcp.Internal;
 
+/// <summary>
+/// Represents a pooled frame buffer that must be disposed to return it to the pool.
+/// </summary>
 internal sealed class PooledFrame : IMemoryOwner<byte>
 {
     private PooledFrame(byte[] buffer, int length, bool returnToPool)
@@ -12,6 +15,9 @@ internal sealed class PooledFrame : IMemoryOwner<byte>
         _returnToPool = returnToPool;
     }
 
+    /// <summary>
+    /// Gets the buffer memory for this frame.
+    /// </summary>
     public Memory<byte> Memory
     {
         get
@@ -21,6 +27,9 @@ internal sealed class PooledFrame : IMemoryOwner<byte>
         }
     }
 
+    /// <summary>
+    /// Returns the underlying buffer to the pool if owned.
+    /// </summary>
     public void Dispose()
     {
         var buffer = Interlocked.Exchange(ref _buffer, null);
@@ -30,6 +39,11 @@ internal sealed class PooledFrame : IMemoryOwner<byte>
         }
     }
 
+    /// <summary>
+    /// Copies the provided sequence into a pooled buffer.
+    /// </summary>
+    /// <param name="sequence">The sequence to copy.</param>
+    /// <returns>A pooled frame containing the copied data.</returns>
     public static PooledFrame CopyFrom(ReadOnlySequence<byte> sequence)
     {
         if (sequence.Length == 0)
@@ -44,6 +58,10 @@ internal sealed class PooledFrame : IMemoryOwner<byte>
         return frame;
     }
 
+    /// <summary>
+    /// Creates an empty frame that does not allocate from the pool.
+    /// </summary>
+    /// <returns>An empty pooled frame.</returns>
     public static PooledFrame CreateEmpty() => new(Array.Empty<byte>(), 0, returnToPool: false);
 
     private byte[]? _buffer;

@@ -6,8 +6,16 @@ using SealPipe.Tcp.Exceptions;
 
 namespace SealPipe.Tcp.Internal;
 
+/// <summary>
+/// Decodes delimiter-separated frames from a <see cref="PipeReader"/>.
+/// </summary>
 internal sealed class DelimitedFrameDecoder
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DelimitedFrameDecoder"/> class.
+    /// </summary>
+    /// <param name="delimiter">The delimiter sequence used to terminate frames.</param>
+    /// <param name="maxFrameBytes">The maximum allowed size for a single frame.</param>
     public DelimitedFrameDecoder(ReadOnlyMemory<byte> delimiter, int maxFrameBytes)
     {
         if (delimiter.Length == 0)
@@ -24,6 +32,12 @@ internal sealed class DelimitedFrameDecoder
         _maxFrameBytes = maxFrameBytes;
     }
 
+    /// <summary>
+    /// Reads frames from the provided <see cref="PipeReader"/> as pooled buffers.
+    /// </summary>
+    /// <param name="reader">The pipe reader to consume.</param>
+    /// <param name="cancellationToken">The token used to cancel the read operation.</param>
+    /// <returns>A stream of pooled frames; each frame must be disposed by the consumer.</returns>
     public IAsyncEnumerable<IMemoryOwner<byte>> ReadFramesAsync(
         PipeReader reader,
         CancellationToken cancellationToken)
