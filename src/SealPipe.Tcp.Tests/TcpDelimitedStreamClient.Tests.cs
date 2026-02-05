@@ -8,10 +8,88 @@ namespace SealPipe.Tcp.Tests;
 
 public sealed class TcpDelimitedStreamClientTests
 {
+    [Fact(DisplayName = "Throws when options are invalid")]
+    [Trait("Category", "Unit")]
+    public void ThrowsWhenOptionsAreInvalid()
+    {
+        // Act & Assert
+        var act = () => TcpDelimitedStreamClient.Create(
+            CreateOptions(host: ""));
+        act.Should().Throw<ArgumentException>();
+
+        // Act & Assert
+        act = () => TcpDelimitedStreamClient.Create(
+            CreateOptions(port: 0));
+        act.Should().Throw<ArgumentOutOfRangeException>();
+
+        // Act & Assert
+        act = () => TcpDelimitedStreamClient.Create(
+            CreateOptions(delimiter: ""));
+        act.Should().Throw<ArgumentException>();
+
+        // Act & Assert
+        act = () => TcpDelimitedStreamClient.Create(
+            CreateOptions(encoding: ""));
+        act.Should().Throw<ArgumentException>();
+
+        // Act & Assert
+        act = () => TcpDelimitedStreamClient.Create(
+            CreateOptions(maxFrameBytes: 0));
+        act.Should().Throw<ArgumentOutOfRangeException>();
+
+        // Act & Assert
+        act = () => TcpDelimitedStreamClient.Create(
+            CreateOptions(connectTimeout: TimeSpan.Zero));
+        act.Should().Throw<ArgumentOutOfRangeException>();
+
+        // Act & Assert
+        act = () => TcpDelimitedStreamClient.Create(
+            CreateOptions(readTimeout: TimeSpan.Zero));
+        act.Should().Throw<ArgumentOutOfRangeException>();
+
+        // Act & Assert
+        act = () => TcpDelimitedStreamClient.Create(
+            CreateOptions(keepAlive: new KeepAliveOptions
+            {
+                Enabled = true,
+                TcpKeepAliveTime = TimeSpan.Zero
+            }));
+        act.Should().Throw<ArgumentOutOfRangeException>();
+
+        // Act & Assert
+        act = () => TcpDelimitedStreamClient.Create(
+            CreateOptions(keepAlive: new KeepAliveOptions
+            {
+                Enabled = true,
+                TcpKeepAliveInterval = TimeSpan.Zero
+            }));
+        act.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact(DisplayName = "Throws when reading after dispose")]
+    [Trait("Category", "Unit")]
+    public async Task ThrowsWhenReadingAfterDispose()
+    {
+        // Arrange
+        var client = TcpDelimitedStreamClient.Create(CreateValidOptions());
+        await client.DisposeAsync();
+
+        // Act
+        var act = async () =>
+        {
+            await using var enumerator = client.ReadMessagesAsync().GetAsyncEnumerator();
+            await enumerator.MoveNextAsync();
+        };
+
+        // Assert
+        await act.Should().ThrowAsync<ObjectDisposedException>();
+    }
+
     [Fact(DisplayName = "Rejects concurrent readers")]
     [Trait("Category", "Unit")]
     public async Task RejectsConcurrentReaders()
     {
+        // Arrange
         var listener = new TcpListener(IPAddress.Loopback, 0);
         listener.Start();
         var port = ((IPEndPoint)listener.LocalEndpoint).Port;
@@ -43,6 +121,7 @@ public sealed class TcpDelimitedStreamClientTests
 
         try
         {
+            // Act
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             await using var firstEnumerator = client.ReadMessagesAsync(cts.Token).GetAsyncEnumerator();
             var firstMove = firstEnumerator.MoveNextAsync().AsTask();
@@ -53,6 +132,7 @@ public sealed class TcpDelimitedStreamClientTests
                 await secondEnumerator.MoveNextAsync();
             };
 
+            // Assert
             await act.Should().ThrowAsync<InvalidOperationException>();
 
             await cts.CancelAsync();
@@ -77,6 +157,7 @@ public sealed class TcpDelimitedStreamClientTests
     [Trait("Category", "Unit")]
     public async Task ReconnectsAfterDisconnect()
     {
+        // Arrange
         using var listener = new TcpListener(IPAddress.Loopback, 0);
         listener.Start();
         var port = ((IPEndPoint)listener.LocalEndpoint).Port;
@@ -118,6 +199,7 @@ public sealed class TcpDelimitedStreamClientTests
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         var messages = new List<string>();
 
+        // Act
         await foreach (var msg in client.ReadMessagesAsync(cts.Token))
         {
             messages.Add(msg);
@@ -132,6 +214,7 @@ public sealed class TcpDelimitedStreamClientTests
         await serverTask;
         listener.Dispose();
 
+        // Assert
         messages.Should().Equal(["first", "second"]);
     }
 
@@ -147,5 +230,40 @@ public sealed class TcpDelimitedStreamClientTests
         }
 
         listener.Stop();
+    }
+
+    private static TcpDelimitedClientOptions CreateValidOptions()
+    {
+        return CreateOptions();
+    }
+
+    private static TcpDelimitedClientOptions CreateOptions(
+        string? host = null,
+        int? port = null,
+        string? delimiter = null,
+        string? encoding = null,
+        int? maxFrameBytes = null,
+        TimeSpan? connectTimeout = null,
+        TimeSpan? readTimeout = null,
+        KeepAliveOptions? keepAlive = null)
+    {
+        return new TcpDelimitedClientOptions
+        {
+            Host = host ?? "127.0.0.1",
+            Port = port ?? 12345,
+            Delimiter = delimiter ?? "\n",
+            Encoding = encoding ?? "utf-8",
+            ConnectTimeout = connectTimeout ?? TimeSpan.FromSeconds(2),
+            ReadTimeout = readTimeout ?? TimeSpan.FromSeconds(2),
+            MaxFrameBytes = maxFrameBytes ?? 1024,
+            Reconnect = new ReconnectOptions
+            {
+                Enabled = false
+            },
+            KeepAlive = keepAlive ?? new KeepAliveOptions
+            {
+                Enabled = false
+            }
+        };
     }
 }
