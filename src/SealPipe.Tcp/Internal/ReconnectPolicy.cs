@@ -74,9 +74,28 @@ internal sealed class ReconnectPolicy
             return initial;
         }
 
-        var factor = Math.Pow(2, attempt - 1);
-        var totalMs = initial.TotalMilliseconds * factor;
-        return TimeSpan.FromMilliseconds(Math.Min(totalMs, int.MaxValue));
+        var initialMs = initial.TotalMilliseconds;
+        if (initialMs <= 0)
+        {
+            return TimeSpan.Zero;
+        }
+
+        const double maxMs = int.MaxValue;
+        var exponent = attempt - 1;
+        var maxFactor = maxMs / initialMs;
+        if (maxFactor <= 1d)
+        {
+            return TimeSpan.FromMilliseconds(maxMs);
+        }
+
+        var maxExponent = Math.Log(maxFactor, 2);
+        if (exponent >= maxExponent)
+        {
+            return TimeSpan.FromMilliseconds(maxMs);
+        }
+
+        var totalMs = initialMs * Math.Pow(2, exponent);
+        return TimeSpan.FromMilliseconds(totalMs);
     }
 
     private static TimeSpan ApplyJitter(TimeSpan delay)
