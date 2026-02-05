@@ -110,7 +110,8 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
             SingleWriter = true
         });
 
-        var runTask = RunReadLoopAsync(channel.Writer, cancellationToken);
+        using var runCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var runTask = RunReadLoopAsync(channel.Writer, runCts.Token);
 
         try
         {
@@ -121,6 +122,7 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
         }
         finally
         {
+            await runCts.CancelAsync().ConfigureAwait(false);
             await runTask.ConfigureAwait(false);
         }
     }
@@ -208,14 +210,21 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var pipe = new Pipe();
-        var fillTask = FillPipeAsync(socket, pipe.Writer, cancellationToken);
+        using var fillCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var fillTask = FillPipeAsync(socket, pipe.Writer, fillCts.Token);
 
-        await foreach (var frame in _decoder.ReadFramesAsync(pipe.Reader, cancellationToken).ConfigureAwait(false))
+        try
         {
-            yield return frame;
+            await foreach (var frame in _decoder.ReadFramesAsync(pipe.Reader, cancellationToken).ConfigureAwait(false))
+            {
+                yield return frame;
+            }
         }
-
-        await fillTask.ConfigureAwait(false);
+        finally
+        {
+            await fillCts.CancelAsync().ConfigureAwait(false);
+            await fillTask.ConfigureAwait(false);
+        }
     }
 
     private async Task FillPipeAsync(
