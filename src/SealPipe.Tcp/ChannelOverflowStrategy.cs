@@ -6,7 +6,7 @@ namespace SealPipe.Tcp;
 public enum ChannelOverflowStrategy
 {
     /// <summary>
-    /// Blocks the producer until capacity is available.
+    /// Blocks the producer until capacity is available. (Not supported in this mode.)
     /// </summary>
     Block = 0,
 

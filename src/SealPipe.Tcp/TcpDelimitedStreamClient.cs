@@ -360,6 +360,11 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
             throw new ArgumentOutOfRangeException(nameof(options), "MaxFrameBytes must be positive.");
         }
 
+        if (options.ChannelOverflowStrategy == ChannelOverflowStrategy.Block)
+        {
+            throw new NotSupportedException("ChannelOverflowStrategy.Block is not supported for this mode.");
+        }
+
         if (options.ConnectTimeout <= TimeSpan.Zero)
         {
             throw new ArgumentOutOfRangeException(
@@ -400,25 +405,11 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) == 1, this);
     }
 
-    private async ValueTask WriteFrameAsync(
+    private static async ValueTask WriteFrameAsync(
         ChannelWriter<IMemoryOwner<byte>> writer,
         IMemoryOwner<byte> frame,
         CancellationToken cancellationToken)
     {
-        if (_options.ChannelOverflowStrategy == ChannelOverflowStrategy.Block)
-        {
-            try
-            {
-                await writer.WriteAsync(frame, cancellationToken).ConfigureAwait(false);
-                return;
-            }
-            catch
-            {
-                frame.Dispose();
-                throw;
-            }
-        }
-
         if (!writer.TryWrite(frame))
         {
             frame.Dispose();
@@ -427,9 +418,13 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
 
     private static BoundedChannelFullMode MapFullMode(ChannelOverflowStrategy strategy)
     {
-        return strategy == ChannelOverflowStrategy.Block
-            ? BoundedChannelFullMode.Wait
-            : BoundedChannelFullMode.DropWrite;
+        return strategy switch
+        {
+            ChannelOverflowStrategy.Drop => BoundedChannelFullMode.DropWrite,
+            ChannelOverflowStrategy.Block => throw new NotSupportedException(
+                "ChannelOverflowStrategy.Block is not supported for this mode."),
+            _ => throw new ArgumentOutOfRangeException(nameof(strategy), strategy, "Unsupported overflow strategy.")
+        };
     }
 
     private sealed class ReadGuard : IDisposable

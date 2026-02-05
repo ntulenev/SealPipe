@@ -57,7 +57,7 @@ public sealed class TcpDelimitedClientOptions
     /// <summary>
     /// Gets the strategy used when buffered frame channels are full.
     /// </summary>
-    public ChannelOverflowStrategy ChannelOverflowStrategy { get; init; } = ChannelOverflowStrategy.Block;
+    public ChannelOverflowStrategy ChannelOverflowStrategy { get; init; } = ChannelOverflowStrategy.Drop;
 
     /// <summary>
     /// Gets TCP keep-alive configuration.
