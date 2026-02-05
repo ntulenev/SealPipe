@@ -59,38 +59,39 @@ internal sealed class DelimitedFrameDecoder
                     break;
                 }
 
-                List<IMemoryOwner<byte>> frames;
-                ParseResult parseResult;
-                try
+                var sequenceReader = new SequenceReader<byte>(buffer);
+                if (sequenceReader.TryReadTo(
+                        out ReadOnlySequence<byte> frame,
+                        _delimiter.Span,
+                        advancePastDelimiter: true))
                 {
-                    parseResult = ParseFrames(buffer, out frames);
-                }
-                catch
-                {
-                    throw;
-                }
-
-                if (parseResult.RemainingLength > _maxFrameBytes)
-                {
-                    foreach (var frame in frames)
+                    if (frame.Length > _maxFrameBytes)
                     {
-                        frame.Dispose();
+                        throw new TcpProtocolException(
+                            $"Frame length {frame.Length} exceeds max {_maxFrameBytes} bytes.");
                     }
 
-                    throw new TcpProtocolException(
-                        $"Frame length {parseResult.RemainingLength} exceeds max {_maxFrameBytes} bytes.");
+                    var pooled = frame.Length == 0
+                        ? PooledFrame.CreateEmpty()
+                        : PooledFrame.CopyFrom(frame);
+
+                    var consumed = sequenceReader.Position;
+                    reader.AdvanceTo(consumed, consumed);
+                    yield return pooled;
+                    continue;
                 }
 
-                reader.AdvanceTo(parseResult.Consumed, parseResult.Examined);
-
-                foreach (var frame in frames)
+                if (buffer.Length > _maxFrameBytes)
                 {
-                    yield return frame;
+                    throw new TcpProtocolException(
+                        $"Frame length {buffer.Length} exceeds max {_maxFrameBytes} bytes.");
                 }
+
+                reader.AdvanceTo(buffer.Start, buffer.End);
 
                 if (result.IsCompleted)
                 {
-                    if (parseResult.RemainingLength > 0)
+                    if (buffer.Length > 0)
                     {
                         throw new TcpProtocolException("Connection closed with incomplete frame data.");
                     }
@@ -105,59 +106,6 @@ internal sealed class DelimitedFrameDecoder
         }
     }
 
-    private ParseResult ParseFrames(
-        ReadOnlySequence<byte> buffer,
-        out List<IMemoryOwner<byte>> frames)
-    {
-        frames = new List<IMemoryOwner<byte>>();
-        var consumed = buffer.Start;
-        var examined = buffer.End;
-
-        try
-        {
-            var bufferSlice = buffer;
-            while (true)
-            {
-                var sequenceReader = new SequenceReader<byte>(bufferSlice);
-                if (!sequenceReader.TryReadTo(out ReadOnlySequence<byte> frame, _delimiter.Span, true))
-                {
-                    break;
-                }
-
-                if (frame.Length > _maxFrameBytes)
-                {
-                    throw new TcpProtocolException(
-                        $"Frame length {frame.Length} exceeds max {_maxFrameBytes} bytes.");
-                }
-
-                consumed = sequenceReader.Position;
-                examined = consumed;
-                bufferSlice = buffer.Slice(consumed);
-
-                var pooled = frame.Length == 0
-                    ? PooledFrame.CreateEmpty()
-                    : PooledFrame.CopyFrom(frame);
-                frames.Add(pooled);
-            }
-
-            var remainingLength = bufferSlice.Length;
-            return new ParseResult(consumed, examined, remainingLength);
-        }
-        catch
-        {
-            foreach (var frame in frames)
-            {
-                frame.Dispose();
-            }
-
-            throw;
-        }
-    }
-
     private readonly ReadOnlyMemory<byte> _delimiter;
     private readonly int _maxFrameBytes;
-    private readonly record struct ParseResult(
-        SequencePosition Consumed,
-        SequencePosition Examined,
-        long RemainingLength);
 }
