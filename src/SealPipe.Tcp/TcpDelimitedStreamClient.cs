@@ -174,8 +174,10 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
 
                     await foreach (var frame in ReadFromSocketAsync(socket, cancellationToken).ConfigureAwait(false))
                     {
-                        Diagnostics.AddFrame();
-                        await WriteFrameAsync(writer, frame, cancellationToken).ConfigureAwait(false);
+                        if (await WriteFrameAsync(writer, frame, cancellationToken).ConfigureAwait(false))
+                        {
+                            Diagnostics.AddFrame();
+                        }
                     }
 
                     if (!_options.Reconnect.Enabled)
@@ -400,7 +402,7 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) == 1, this);
     }
 
-    private async ValueTask WriteFrameAsync(
+    private async ValueTask<bool> WriteFrameAsync(
         ChannelWriter<IMemoryOwner<byte>> writer,
         IMemoryOwner<byte> frame,
         CancellationToken cancellationToken)
@@ -410,7 +412,7 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
             try
             {
                 await writer.WriteAsync(frame, cancellationToken).ConfigureAwait(false);
-                return;
+                return true;
             }
             catch
             {
@@ -419,10 +421,13 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
             }
         }
 
-        if (!writer.TryWrite(frame))
+        if (writer.TryWrite(frame))
         {
-            frame.Dispose();
+            return true;
         }
+
+        frame.Dispose();
+        return false;
     }
 
     private static BoundedChannelFullMode MapFullMode(ChannelOverflowStrategy strategy)
