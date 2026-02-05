@@ -32,6 +32,11 @@ internal sealed class PooledFrame : IMemoryOwner<byte>
     /// </summary>
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) == 1)
+        {
+            return;
+        }
+
         var buffer = Interlocked.Exchange(ref _buffer, null);
         if (buffer is not null && _returnToPool)
         {
@@ -67,5 +72,6 @@ internal sealed class PooledFrame : IMemoryOwner<byte>
     private byte[]? _buffer;
     private readonly int _length;
     private readonly bool _returnToPool;
+    private int _disposed;
     private static readonly byte[] _emptyBuffer = [];
 }
