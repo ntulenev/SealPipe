@@ -168,6 +168,7 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
         CancellationToken cancellationToken)
     {
         var reconnectPolicy = new ReconnectPolicy(_options.Reconnect);
+        var isReconnectAttempt = false;
 
         try
         {
@@ -178,6 +179,12 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
                 Socket? socket = null;
                 try
                 {
+                    if (isReconnectAttempt)
+                    {
+                        Diagnostics.AddReconnectAttempt();
+                        isReconnectAttempt = false;
+                    }
+
                     socket = await _connector.ConnectAsync(cancellationToken).ConfigureAwait(false);
                     reconnectPolicy.Reset();
                     LogConnected(_logger, _options.Host, _options.Port, null);
@@ -196,7 +203,6 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
                         return;
                     }
 
-                    Diagnostics.AddReconnectAttempt();
                     LogConnectionClosed(_logger, null);
                 }
                 catch (Exception ex) when (ShouldReconnect(ex, cancellationToken))
@@ -207,7 +213,6 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
                         return;
                     }
 
-                    Diagnostics.AddReconnectAttempt();
                     LogConnectionFailed(_logger, ex);
                 }
                 finally
@@ -226,6 +231,8 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
                 {
                     await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
                 }
+
+                isReconnectAttempt = true;
             }
         }
         catch (OperationCanceledException oce)
