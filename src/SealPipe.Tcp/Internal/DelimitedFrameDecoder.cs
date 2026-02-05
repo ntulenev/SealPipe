@@ -107,7 +107,6 @@ internal sealed class DelimitedFrameDecoder
         ChannelWriter<IMemoryOwner<byte>> writer,
         CancellationToken cancellationToken)
     {
-#pragma warning disable CA1031 // Do not catch general exception types
         try
         {
             while (true)
@@ -162,7 +161,19 @@ internal sealed class DelimitedFrameDecoder
                 }
             }
         }
-        catch (Exception ex)
+        catch (OperationCanceledException ex)
+        {
+            writer.TryComplete(ex);
+        }
+        catch (TcpProtocolException ex)
+        {
+            writer.TryComplete(ex);
+        }
+        catch (ChannelClosedException ex)
+        {
+            writer.TryComplete(ex);
+        }
+        catch (ObjectDisposedException ex)
         {
             writer.TryComplete(ex);
         }
@@ -170,7 +181,6 @@ internal sealed class DelimitedFrameDecoder
         {
             await reader.CompleteAsync().ConfigureAwait(false);
         }
-#pragma warning restore CA1031 // Do not catch general exception types
     }
 
     private ParseResult ParseFrames(
