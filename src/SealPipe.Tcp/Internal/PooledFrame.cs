@@ -59,8 +59,16 @@ internal sealed class PooledFrame : IMemoryOwner<byte>
         var length = checked((int)sequence.Length);
         var buffer = ArrayPool<byte>.Shared.Rent(length);
         var frame = new PooledFrame(buffer, length, returnToPool: true);
-        sequence.CopyTo(frame.Memory.Span);
-        return frame;
+        try
+        {
+            sequence.CopyTo(frame.Memory.Span);
+            return frame;
+        }
+        catch
+        {
+            frame.Dispose();
+            throw;
+        }
     }
 
     /// <summary>
