@@ -8,6 +8,13 @@ public sealed class TcpConnectException : Exception
     /// <summary>
     /// Initializes a new instance of the <see cref="TcpConnectException"/> class.
     /// </summary>
+    public TcpConnectException()
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="TcpConnectException"/> class.
+    /// </summary>
     /// <param name="message">The error message. Cannot be null or empty.</param>
     public TcpConnectException(string message)
         : base(message)

@@ -6,6 +6,18 @@ namespace SealPipe.Tcp.Tests;
 
 public sealed class TcpExceptionsTests
 {
+    [Fact(DisplayName = "TcpConnectException can be created with parameterless constructor")]
+    [Trait("Category", "Unit")]
+    public void TcpConnectExceptionCanBeCreatedWithParameterlessConstructor()
+    {
+        // Arrange & Act
+        var exception = new TcpConnectException();
+
+        // Assert
+        exception.Message.Should().NotBeNullOrEmpty();
+        exception.InnerException.Should().BeNull();
+    }
+
     [Fact(DisplayName = "TcpConnectException can be created with message")]
     [Trait("Category", "Unit")]
     public void TcpConnectExceptionCanBeCreatedWithMessage()
@@ -45,6 +57,18 @@ public sealed class TcpExceptionsTests
         exception.InnerException.Should().BeNull();
     }
 
+    [Fact(DisplayName = "TcpProtocolException can be created with parameterless constructor")]
+    [Trait("Category", "Unit")]
+    public void TcpProtocolExceptionCanBeCreatedWithParameterlessConstructor()
+    {
+        // Arrange & Act
+        var exception = new TcpProtocolException();
+
+        // Assert
+        exception.Message.Should().NotBeNullOrEmpty();
+        exception.InnerException.Should().BeNull();
+    }
+
     [Fact(DisplayName = "TcpProtocolException can be created with message and inner exception")]
     [Trait("Category", "Unit")]
     public void TcpProtocolExceptionCanBeCreatedWithMessageAndInnerException()
@@ -69,6 +93,18 @@ public sealed class TcpExceptionsTests
 
         // Assert
         exception.Message.Should().Be("read timeout");
+        exception.InnerException.Should().BeNull();
+    }
+
+    [Fact(DisplayName = "TcpReadTimeoutException can be created with parameterless constructor")]
+    [Trait("Category", "Unit")]
+    public void TcpReadTimeoutExceptionCanBeCreatedWithParameterlessConstructor()
+    {
+        // Arrange & Act
+        var exception = new TcpReadTimeoutException();
+
+        // Assert
+        exception.Message.Should().NotBeNullOrEmpty();
         exception.InnerException.Should().BeNull();
     }
 

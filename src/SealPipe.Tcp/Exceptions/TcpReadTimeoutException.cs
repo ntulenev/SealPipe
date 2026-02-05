@@ -8,6 +8,13 @@ public sealed class TcpReadTimeoutException : Exception
     /// <summary>
     /// Initializes a new instance of the <see cref="TcpReadTimeoutException"/> class.
     /// </summary>
+    public TcpReadTimeoutException()
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="TcpReadTimeoutException"/> class.
+    /// </summary>
     /// <param name="message">The error message. Cannot be null or empty.</param>
     public TcpReadTimeoutException(string message)
         : base(message)

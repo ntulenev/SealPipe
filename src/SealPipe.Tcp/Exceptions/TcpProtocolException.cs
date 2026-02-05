@@ -8,6 +8,13 @@ public sealed class TcpProtocolException : Exception
     /// <summary>
     /// Initializes a new instance of the <see cref="TcpProtocolException"/> class.
     /// </summary>
+    public TcpProtocolException()
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="TcpProtocolException"/> class.
+    /// </summary>
     /// <param name="message">The error message. Cannot be null or empty.</param>
     public TcpProtocolException(string message)
         : base(message)
