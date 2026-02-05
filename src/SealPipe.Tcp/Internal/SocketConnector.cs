@@ -29,7 +29,12 @@ internal sealed class SocketConnector
         catch (Exception ex)
         {
             socket.Dispose();
-            throw ex is TcpConnectException ? ex : new TcpConnectException(
+            if (ex is TcpConnectException)
+            {
+                throw;
+            }
+
+            throw new TcpConnectException(
                 $"Failed to connect to {_options.Host}:{_options.Port}.", ex);
         }
     }
