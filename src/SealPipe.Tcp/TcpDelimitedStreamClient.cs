@@ -39,10 +39,7 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
         _connector = new SocketConnector(_options, _logger);
         _decoder = new DelimitedFrameDecoder(
             _delimiterBytes,
-            _options.MaxFrameBytes,
-            _options.ChannelOverflowStrategy,
-            _options.ChannelCapacity,
-            Diagnostics);
+            _options.MaxFrameBytes);
     }
 
     /// <summary>

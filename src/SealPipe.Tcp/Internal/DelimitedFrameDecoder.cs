@@ -2,8 +2,6 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.IO.Pipelines;
 using System.Runtime.CompilerServices;
-using System.Threading.Channels;
-using SealPipe.Tcp;
 using SealPipe.Tcp.Exceptions;
 
 namespace SealPipe.Tcp.Internal;
@@ -18,15 +16,9 @@ internal sealed class DelimitedFrameDecoder
     /// </summary>
     /// <param name="delimiter">The delimiter sequence used to terminate frames.</param>
     /// <param name="maxFrameBytes">The maximum allowed size for a single frame.</param>
-    /// <param name="overflowStrategy">The strategy used when the frame channel is full.</param>
-    /// <param name="channelCapacity">The capacity for the frame buffering channel.</param>
-    /// <param name="diagnostics">The diagnostics sink for dropped frame counts.</param>
     public DelimitedFrameDecoder(
         ReadOnlyMemory<byte> delimiter,
-        int maxFrameBytes,
-        ChannelOverflowStrategy overflowStrategy,
-        int channelCapacity,
-        TcpDelimitedClientDiagnostics diagnostics)
+        int maxFrameBytes)
     {
         if (delimiter.Length == 0)
         {
@@ -38,16 +30,8 @@ internal sealed class DelimitedFrameDecoder
             throw new ArgumentOutOfRangeException(nameof(maxFrameBytes), "MaxFrameBytes must be positive.");
         }
 
-        if (channelCapacity <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(channelCapacity), "ChannelCapacity must be positive.");
-        }
-
         _delimiter = delimiter;
         _maxFrameBytes = maxFrameBytes;
-        _overflowStrategy = overflowStrategy;
-        _channelCapacity = channelCapacity;
-        _diagnostics = diagnostics ?? throw new ArgumentNullException(nameof(diagnostics));
     }
 
     /// <summary>
@@ -56,65 +40,12 @@ internal sealed class DelimitedFrameDecoder
     /// <param name="reader">The pipe reader to consume.</param>
     /// <param name="cancellationToken">The token used to cancel the read operation.</param>
     /// <returns>A stream of pooled frames; each frame must be disposed by the consumer.</returns>
-    public IAsyncEnumerable<IMemoryOwner<byte>> ReadFramesAsync(
+    public async IAsyncEnumerable<IMemoryOwner<byte>> ReadFramesAsync(
         PipeReader reader,
-        CancellationToken cancellationToken)
+        [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(reader);
 
-        var channel = Channel.CreateBounded<IMemoryOwner<byte>>(new BoundedChannelOptions(_channelCapacity)
-        {
-            SingleReader = true,
-            SingleWriter = true,
-            FullMode = MapFullMode(_overflowStrategy)
-        });
-
-        using var decodeCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var decodeTask = RunDecodeAsync(reader, channel.Writer, decodeCts.Token);
-
-        return ReadAllWithCleanupAsync(channel.Reader, decodeTask, decodeCts, cancellationToken);
-    }
-
-    private static async IAsyncEnumerable<IMemoryOwner<byte>> ReadAllWithCleanupAsync(
-        ChannelReader<IMemoryOwner<byte>> reader,
-        Task decodeTask,
-        CancellationTokenSource decodeCts,
-        [EnumeratorCancellation] CancellationToken cancellationToken)
-    {
-        try
-        {
-            await foreach (var frame in reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
-            {
-                yield return frame;
-            }
-        }
-        finally
-        {
-            if (!decodeTask.IsCompleted)
-            {
-                await decodeCts.CancelAsync().ConfigureAwait(false);
-            }
-
-            try
-            {
-                await decodeTask.ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-            {
-            }
-
-            while (reader.TryRead(out var frame))
-            {
-                frame.Dispose();
-            }
-        }
-    }
-
-    private async Task RunDecodeAsync(
-        PipeReader reader,
-        ChannelWriter<IMemoryOwner<byte>> writer,
-        CancellationToken cancellationToken)
-    {
         try
         {
             while (true)
@@ -125,14 +56,14 @@ internal sealed class DelimitedFrameDecoder
                 var buffer = result.Buffer;
                 if (buffer.Length == 0 && result.IsCompleted)
                 {
-                    writer.TryComplete();
                     break;
                 }
 
+                List<IMemoryOwner<byte>> frames;
                 ParseResult parseResult;
                 try
                 {
-                    parseResult = await ParseFramesAsync(buffer, writer, cancellationToken).ConfigureAwait(false);
+                    parseResult = ParseFrames(buffer, out frames);
                 }
                 catch
                 {
@@ -141,11 +72,21 @@ internal sealed class DelimitedFrameDecoder
 
                 if (parseResult.RemainingLength > _maxFrameBytes)
                 {
+                    foreach (var frame in frames)
+                    {
+                        frame.Dispose();
+                    }
+
                     throw new TcpProtocolException(
                         $"Frame length {parseResult.RemainingLength} exceeds max {_maxFrameBytes} bytes.");
                 }
 
                 reader.AdvanceTo(parseResult.Consumed, parseResult.Examined);
+
+                foreach (var frame in frames)
+                {
+                    yield return frame;
+                }
 
                 if (result.IsCompleted)
                 {
@@ -154,26 +95,9 @@ internal sealed class DelimitedFrameDecoder
                         throw new TcpProtocolException("Connection closed with incomplete frame data.");
                     }
 
-                    writer.TryComplete();
                     break;
                 }
             }
-        }
-        catch (OperationCanceledException ex)
-        {
-            writer.TryComplete(ex);
-        }
-        catch (TcpProtocolException ex)
-        {
-            writer.TryComplete(ex);
-        }
-        catch (ChannelClosedException ex)
-        {
-            writer.TryComplete(ex);
-        }
-        catch (ObjectDisposedException ex)
-        {
-            writer.TryComplete(ex);
         }
         finally
         {
@@ -181,81 +105,57 @@ internal sealed class DelimitedFrameDecoder
         }
     }
 
-    private async ValueTask<ParseResult> ParseFramesAsync(
+    private ParseResult ParseFrames(
         ReadOnlySequence<byte> buffer,
-        ChannelWriter<IMemoryOwner<byte>> writer,
-        CancellationToken cancellationToken)
+        out List<IMemoryOwner<byte>> frames)
     {
+        frames = new List<IMemoryOwner<byte>>();
         var consumed = buffer.Start;
         var examined = buffer.End;
-        var remainingLength = buffer.Length;
 
-        var bufferSlice = buffer;
-        while (true)
+        try
         {
-            var sequenceReader = new SequenceReader<byte>(bufferSlice);
-            if (!sequenceReader.TryReadTo(out ReadOnlySequence<byte> frame, _delimiter.Span, true))
+            var bufferSlice = buffer;
+            while (true)
             {
-                break;
-            }
+                var sequenceReader = new SequenceReader<byte>(bufferSlice);
+                if (!sequenceReader.TryReadTo(out ReadOnlySequence<byte> frame, _delimiter.Span, true))
+                {
+                    break;
+                }
 
-            if (frame.Length > _maxFrameBytes)
-            {
-                throw new TcpProtocolException(
-                    $"Frame length {frame.Length} exceeds max {_maxFrameBytes} bytes.");
-            }
+                if (frame.Length > _maxFrameBytes)
+                {
+                    throw new TcpProtocolException(
+                        $"Frame length {frame.Length} exceeds max {_maxFrameBytes} bytes.");
+                }
 
-            consumed = sequenceReader.Position;
-            examined = consumed;
-            bufferSlice = buffer.Slice(consumed);
+                consumed = sequenceReader.Position;
+                examined = consumed;
+                bufferSlice = buffer.Slice(consumed);
 
-            PooledFrame? pooled = null;
-            try
-            {
-                pooled = frame.Length == 0
+                var pooled = frame.Length == 0
                     ? PooledFrame.CreateEmpty()
                     : PooledFrame.CopyFrom(frame);
+                frames.Add(pooled);
+            }
 
-                if (_overflowStrategy == ChannelOverflowStrategy.Block)
-                {
-                    await writer.WriteAsync(pooled, cancellationToken).ConfigureAwait(false);
-                    pooled = null;
-                }
-                else
-                {
-                    if (writer.TryWrite(pooled))
-                    {
-                        pooled = null;
-                    }
-                    else
-                    {
-                        _diagnostics.AddDroppedFrame();
-                    }
-                }
-            }
-            finally
-            {
-                pooled?.Dispose();
-            }
+            var remainingLength = bufferSlice.Length;
+            return new ParseResult(consumed, examined, remainingLength);
         }
+        catch
+        {
+            foreach (var frame in frames)
+            {
+                frame.Dispose();
+            }
 
-        remainingLength = bufferSlice.Length;
-        return new ParseResult(consumed, examined, remainingLength);
-    }
-
-    private static BoundedChannelFullMode MapFullMode(ChannelOverflowStrategy strategy)
-    {
-        return strategy == ChannelOverflowStrategy.Block
-                   ? BoundedChannelFullMode.Wait
-                   : BoundedChannelFullMode.DropWrite;
+            throw;
+        }
     }
 
     private readonly ReadOnlyMemory<byte> _delimiter;
     private readonly int _maxFrameBytes;
-    private readonly ChannelOverflowStrategy _overflowStrategy;
-    private readonly TcpDelimitedClientDiagnostics _diagnostics;
-    private readonly int _channelCapacity;
-
     private readonly record struct ParseResult(
         SequencePosition Consumed,
         SequencePosition Examined,
