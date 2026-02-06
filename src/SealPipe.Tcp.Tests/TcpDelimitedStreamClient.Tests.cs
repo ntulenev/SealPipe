@@ -99,7 +99,7 @@ public sealed class TcpDelimitedStreamClientTests
     }
 
     [Fact(DisplayName = "Rejects concurrent readers")]
-    [Trait("Category", "Unit")]
+    [Trait("Category", "Integration")]
     public async Task RejectsConcurrentReaders()
     {
         // Arrange
@@ -162,7 +162,7 @@ public sealed class TcpDelimitedStreamClientTests
     }
 
     [Fact(DisplayName = "Reconnects after disconnect")]
-    [Trait("Category", "Unit")]
+    [Trait("Category", "Integration")]
     public async Task ReconnectsAfterDisconnect()
     {
         // Arrange
@@ -223,7 +223,7 @@ public sealed class TcpDelimitedStreamClientTests
     }
 
     [Fact(DisplayName = "Drops frames when channel overflows")]
-    [Trait("Category", "Unit")]
+    [Trait("Category", "Integration")]
     public async Task DropsFramesWhenChannelOverflows()
     {
         // Arrange
@@ -294,7 +294,7 @@ public sealed class TcpDelimitedStreamClientTests
     }
 
     [Fact(DisplayName = "Blocks instead of dropping when channel overflows")]
-    [Trait("Category", "Unit")]
+    [Trait("Category", "Integration")]
     public async Task BlocksInsteadOfDroppingWhenChannelOverflows()
     {
         // Arrange
@@ -355,7 +355,7 @@ public sealed class TcpDelimitedStreamClientTests
     }
 
     [Fact(DisplayName = "Read timeout surfaces when reconnect disabled")]
-    [Trait("Category", "Unit")]
+    [Trait("Category", "Integration")]
     public async Task ReadTimeoutSurfacesWhenReconnectDisabled()
     {
         // Arrange
@@ -405,7 +405,7 @@ public sealed class TcpDelimitedStreamClientTests
     }
 
     [Fact(DisplayName = "Read timeout triggers reconnect attempts")]
-    [Trait("Category", "Unit")]
+    [Trait("Category", "Integration")]
     public async Task ReadTimeoutTriggersReconnectAttempts()
     {
         // Arrange
