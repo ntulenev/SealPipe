@@ -125,6 +125,16 @@ public sealed class TcpDelimitedStreamClient : ITcpDelimitedStreamClient, IAsync
             catch (OperationCanceledException)
             {
             }
+            catch (Exception ex) when (
+                ex is TcpProtocolException ||
+                ex is TcpReadTimeoutException ||
+                ex is TcpConnectException ||
+                ex is SocketException ||
+                ex is IOException ||
+                ex is ChannelClosedException ||
+                ex is ObjectDisposedException)
+            {
+            }
         }
     }
 
