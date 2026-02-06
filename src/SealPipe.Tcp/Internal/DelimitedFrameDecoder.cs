@@ -1,5 +1,4 @@
 using System.Buffers;
-using System.Collections.Generic;
 using System.IO.Pipelines;
 using System.Runtime.CompilerServices;
 using SealPipe.Tcp.Exceptions;
